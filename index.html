@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- 基础SEO标签 -->
+    <title>正念木鱼 - 线上敲击木鱼，获取内心平静</title>
+    <meta name="description" content="正念木鱼是一个在线木鱼模拟器，通过敲击木鱼获得内心的平静与祝福。每次敲击都会带来好运与祝福，让您在数字时代也能体验传统木鱼的宁静力量。">
+    <meta name="keywords" content="正念木鱼,电子木鱼,在线木鱼,木鱼模拟器,冥想,正念修行,佛教文化,心灵平静">
+    <meta name="author" content="正念木鱼">
+    <meta name="robots" content="index, follow">
+    
+    <!-- PWA 相关 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f5f5f5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="正念木鱼">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- Open Graph标签 -->
+    <meta property="og:title" content="正念木鱼 - 线上敲击木鱼，获取内心平静">
+    <meta property="og:description" content="通过敲击木鱼获得内心的平静与祝福。体验传统木鱼的宁静力量，收获数字时代的心灵慰藉。">
+    <meta property="og:image" content="logo.png">
+    <meta property="og:url" content="https://www.maikami.com/woodenfish/">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter卡片标签 -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="正念木鱼 - 线上敲击木鱼，获取内心平静">
+    <meta name="twitter:description" content="通过敲击木鱼获得内心的平静与祝福。体验传统木鱼的宁静力量，收获数字时代的心灵慰藉。">
+    <meta name="twitter:image" content="logo.png">
+    
+    <!-- 移动设备优化 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="正念木鱼">
+    
+    <!-- 网站图标 -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    
+    <!-- 样式表 -->
+    <link rel="stylesheet" href="style.css?v=202501161635">
+    
+    <!-- 结构化数据 -->
+    <script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "WebApplication",
+        "name": "正念木鱼",
+        "description": "一个在线木鱼模拟器，通过敲击木鱼获得内心的平静与祝福",
+        "url": "https://www.maikami.com/woodenfish/",
+        "applicationCategory": "Lifestyle",
+        "operatingSystem": "All",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "CNY"
+        },
+        "creator": {
+            "@type": "Organization",
+            "name": "正念木鱼"
+        }
+    }
+    </script>
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "pun6m4c6zo");
+    </script>
+</head>
+<body>
+    <div class="total-stats">
+        <span id="totalHits">0 棒</span>
+        <span class="stats-separator">·</span>
+        <span id="totalScore">0 灵子</span>
+    </div>
+    <div class="container">
+        <div class="logo">
+            <img src="logo.png" alt="正念木鱼 - 在线木鱼模拟器" class="logo-image">
+        </div>
+        <div class="stats">
+            <span id="hits">本次敲击 0 棒</span>
+            <span class="stats-separator">·</span>
+            <span id="score">获得 0 灵子</span>
+        </div>
+        <div class="woodfish-container">
+            <img src="woodfish.png" alt="木鱼" id="woodfish" class="woodfish">
+            <img src="stick.png" alt="木鱼棒" id="stick" class="stick">
+        </div>
+        <button id="autoButton" class="auto-button">开始</button>
+    </div>
+    <audio id="woodfish-sound" src="woodfish-sound2.mp3" preload="auto"></audio>
+    <audio id="background-music" loop preload="auto"></audio>
+    
+    <div class="zen-text" id="zenText"></div>
+    
+    <div class="music-panel">
+        <button id="musicToggle" class="music-toggle">
+            <span class="music-icon">♪</span>
+        </button>
+        <div class="music-dropdown">
+            <div class="music-header">
+                <h4>正念梵音</h4>
+                <div class="volume-control">
+                    <input type="range" id="volumeSlider" min="0" max="100" value="30">
+                </div>
+            </div>
+            <div class="music-list">
+                <div class="music-item" data-src="music/Green-Tara-Mantra.mp3">
+                    <span class="music-name">绿度母心咒</span>
+                    <span class="music-duration">3:24</span>
+                </div>
+                <div class="music-item" data-src="music/The-Heart-Sutra.mp3">
+                    <span class="music-name">般若波罗蜜多心经</span>
+                    <span class="music-duration">3:44</span>
+                </div>
+                <div class="music-item" data-src="music/Forest-birds-singing.mp3">
+                    <span class="music-name">森林鸟鸣</span>
+                    <span class="music-duration">5:30</span>
+                </div>
+                <div class="music-item" data-src="music/waves-sound.mp3">
+                    <span class="music-name">沙滩浪花</span>
+                    <span class="music-duration">8:45</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="trend-overlay" id="trendOverlay"></div>
+    <div id="trendPanel" class="trend-panel">
+        <div class="trend-content">
+            <div class="trend-header">
+                <h3>正念趋势</h3>
+                <p class="trend-tip">日日正念，福慧双修。持之以恒，方得始终。</p>
+            </div>
+            <div class="heatmap" id="heatmap"></div>
+            <div id="monthlyList"></div>
+        </div>
+    </div>
+    <script src="script.js?v=202501170741" defer></script>
+
+    <script>
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker 注册成功:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker 注册失败:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

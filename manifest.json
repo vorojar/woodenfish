@@ -1,0 +1,23 @@
+{
+    "name": "正念木鱼",
+    "short_name": "正念木鱼",
+    "description": "一款专注于正念修习的木鱼应用",
+    "start_url": "https://maikami.com/woodenfish/ ",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#f5f5f5",
+    "icons": [
+        {
+            "src": "icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

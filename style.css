@@ -1,0 +1,649 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+button {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:focus {
+    outline: none;
+}
+
+.container {
+    text-align: center;
+    padding: 20px;
+}
+
+.total-stats {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    padding: 8px 16px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    color: #666;
+    font-size: 0.9rem;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.total-stats:active,
+.total-stats:active .stats-separator {
+    transform: scale(0.95);
+    opacity: 0.7;
+}
+
+.stats-separator {
+    transition: all 0.3s ease;
+}
+
+.auto-button {
+    position: relative;
+    margin-top: 20px;
+    padding: 8px 16px;
+    border: none;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    z-index: 1000;
+}
+
+.auto-button:active {
+    transform: scale(0.9);
+}
+
+.auto-button.active {
+    background-color: rgba(76, 175, 80, 0.3);
+    color: #1b5e20;
+}
+
+.auto-button:hover {
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.auto-button.active:hover {
+    background-color: rgba(76, 175, 80, 0.4);
+}
+
+.logo-image {
+    width: auto;
+    height: 90px;
+    display: inline-block;
+}
+
+h1 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 2rem;
+}
+
+.stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 70px;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.score {
+    font-size: 1.2rem;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.woodfish-container {
+    position: relative;
+    width: 200px;
+    height: 120px;
+    margin: 0 auto;
+    margin-left: 12px;
+}
+
+.woodfish {
+    width: 150px;
+    height: auto;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 0.1s;
+}
+
+.woodfish.shrink {
+    transform: scale(0.95);
+}
+
+.woodfish:active {
+    transform: scale(0.98);
+}
+
+.stick {
+    width: 80px;
+    height: auto;
+    position: absolute;
+    right: 0;
+    top: 10%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    transition: transform 0.1s;
+}
+
+.stick.hit {
+    transform: translateY(-50%) rotate(-20deg);
+}
+
+.bubble {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    color: #4CAF50;
+    pointer-events: none;
+}
+
+.bubble.float-left {
+    animation: floatLeft 1s ease-out forwards;
+}
+
+.bubble.float-right {
+    animation: floatRight 1s ease-out forwards;
+}
+
+@keyframes floatLeft {
+    0% {
+        opacity: 1;
+        transform: translate(0, 0);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-30px, -50px);
+    }
+}
+
+@keyframes floatRight {
+    0% {
+        opacity: 1;
+        transform: translate(0, 0);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(30px, -50px);
+    }
+}
+
+@keyframes float {
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+}
+
+.trend-button {
+    display: none;
+}
+
+.trend-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1000;
+}
+
+.trend-overlay.show {
+    display: block;
+    opacity: 1;
+}
+
+.trend-panel {
+    position: fixed;
+    bottom: -100%;
+    left: 0;
+    width: 100%;
+    height: 80vh;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px 20px 0 0;
+    transition: transform 0.3s ease;
+    z-index: 1001;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.trend-panel.show {
+    transform: translateY(-100%);
+}
+
+.trend-content {
+    padding: 20px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.trend-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.trend-header h3 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.trend-tip {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.heatmap {
+    margin: 20px 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
+    gap: 4px;
+    justify-content: center;
+}
+
+.heatmap-day {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    background-color: #eee;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: #666;
+    position: relative;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.heatmap-day.has-data:active {
+    transform: scale(0.9);
+}
+
+.heatmap-day:focus {
+    outline: none;
+}
+
+.heatmap-day.has-data:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 1;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.heatmap-day.has-data:hover::after {
+    opacity: 1;
+}
+
+.heatmap-day.no-data {
+    background-color: #f5f5f5;
+    color: #999;
+}
+
+.heatmap-day[data-hits="0"] { background-color: #f5f5f5; }
+.heatmap-day[data-hits="1"] { background-color: rgba(76, 175, 80, 0.2); }
+.heatmap-day[data-hits="2"] { background-color: rgba(76, 175, 80, 0.4); }
+.heatmap-day[data-hits="3"] { background-color: rgba(76, 175, 80, 0.6); }
+.heatmap-day[data-hits="4"] { background-color: rgba(76, 175, 80, 0.8); }
+.heatmap-day[data-hits="5"] { background-color: rgba(76, 175, 80, 1); color: white; }
+
+.stats-tabs {
+    margin-top: 30px;
+}
+
+.tab-header {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tab-btn.active {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+}
+
+.tab-content {
+    position: relative;
+}
+
+.tab-pane {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.tab-pane.active {
+    display: block;
+    opacity: 1;
+}
+
+
+.monthly-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+}
+
+.monthly-item .date {
+    color: #666;
+    flex-shrink: 0;
+    margin-right: 15px;
+}
+
+.monthly-item .monthly-stats {
+    flex-grow: 1;
+}
+
+.date {
+    color: #666;
+}
+
+.stats {
+    display: flex;
+    gap: 15px;
+    color: #4CAF50;
+}
+
+.stats span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.monthly-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    text-align: center;
+}
+
+.monthly-stats .stat-item {
+    background-color: rgba(76, 175, 80, 0.1);
+    padding: 7px;
+    border-radius: 8px;
+}
+
+.monthly-stats .stat-label {
+    color: #666;
+    font-size: 0.7rem;
+    margin-bottom: 2px;
+}
+
+.monthly-stats .stat-value {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.daily-stats {
+    margin-top: 30px;
+}
+
+.daily-stats h4 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.daily-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* 音乐面板样式 */
+.music-panel {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.music-toggle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.1);
+    border: none;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 16px;
+}
+
+.music-toggle:hover {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.music-toggle:active {
+    transform: scale(0.95);
+}
+
+.music-toggle.playing {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+}
+
+.music-toggle.playing:hover {
+    background-color: rgba(76, 175, 80, 0.3);
+}
+
+.music-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 240px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+    padding: 15px;
+    backdrop-filter: blur(10px);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.music-panel.show-panel .music-dropdown {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.music-header {
+    margin-bottom: 12px;
+}
+
+.music-header h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.volume-control {
+    width: 100%;
+    padding: 5px 0;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.volume-control input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(76, 175, 80, 0.2);
+    border-radius: 2px;
+    outline: none;
+    touch-action: none;
+}
+
+.volume-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #4CAF50;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.volume-control input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.music-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.music-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 4px;
+}
+
+.music-item:hover {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.music-item.active {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+}
+
+.music-name {
+    font-size: 0.85rem;
+    color: #333;
+}
+
+.music-duration {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+/* 音符旋转动画 */
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.music-icon {
+    display: inline-block;
+    transition: transform 0.3s ease;
+}
+
+.playing .music-icon {
+    animation: rotate 8s linear infinite;
+}
+
+/* 暂停时停止动画但保持当前位置 */
+.music-toggle:not(.playing) .music-icon {
+    animation-play-state: paused;
+}
+
+/* 禅修文字样式 */
+.zen-text {
+    position: fixed;
+    left: 50%;
+    bottom: 15%;
+    transform: translateX(-50%) translateY(20px);
+    font-size: 0.90rem;
+    color: #666;
+    text-align: center;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    max-width: 80%;
+    opacity: 0;
+    transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.zen-text.show {
+    opacity: 0.9;
+    transform: translateX(-50%) translateY(0);
+}
