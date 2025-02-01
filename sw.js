@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zenfish-v1';
+const CACHE_NAME = 'zenfish-v2';
 const ASSETS = [
     'index.html',
     'style.css',
