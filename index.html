@@ -5,22 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <!-- 基础SEO标签 -->
-    <title>正念木鱼 - 线上敲击木鱼，获取内心平静</title>
-    <meta name="description" content="正念木鱼是一个在线木鱼模拟器，通过敲击木鱼获得内心的平静与祝福。每次敲击都会带来好运与祝福，让您在数字时代也能体验传统木鱼的宁静力量。">
-    <meta name="keywords" content="正念木鱼,电子木鱼,在线木鱼,木鱼模拟器,冥想,正念修行,佛教文化,心灵平静">
+    <title>正念木鱼 - 日日正念，福慧双修。持之以恒，方得始终。</title>
+    <meta name="description" content="正念木鱼是一个在线修行冥想的工具，通过敲击木鱼获得内心的平静与祝福。每次敲击都会带来好运与祝福，让您在数字时代也能体验传统木鱼的宁静力量。">
+    <meta name="keywords" content="正念木鱼,电子木鱼,在线木鱼,木鱼模拟器,冥想,正念修行,佛教文化,心灵平静,心灵慰藉,冥想,修行">
     <meta name="author" content="正念木鱼">
     <meta name="robots" content="index, follow">
     
     <!-- PWA 相关 -->
-    <link rel="manifest" href="manifest.json">
+    <!-- <link rel="manifest" href="manifest.json?v=202503021845">
     <meta name="theme-color" content="#f5f5f5">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="正念木鱼">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png"> -->
+    
     <!-- Open Graph标签 -->
-    <meta property="og:title" content="正念木鱼 - 线上敲击木鱼，获取内心平静">
+    <meta property="og:title" content="正念木鱼 - 日日正念，福慧双修。持之以恒，方得始终。">
     <meta property="og:description" content="通过敲击木鱼获得内心的平静与祝福。体验传统木鱼的宁静力量，收获数字时代的心灵慰藉。">
     <meta property="og:image" content="logo.png">
     <meta property="og:url" content="https://www.maikami.com/woodenfish/">
@@ -28,9 +29,9 @@
     
     <!-- Twitter卡片标签 -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="正念木鱼 - 线上敲击木鱼，获取内心平静">
+    <meta name="twitter:title" content="正念木鱼 - 线上修行，获取内心平静">
     <meta name="twitter:description" content="通过敲击木鱼获得内心的平静与祝福。体验传统木鱼的宁静力量，收获数字时代的心灵慰藉。">
-    <meta name="twitter:image" content="logo.png">
+    <meta name="twitter:image" content="logo.png?v=202502190845">
     
     <!-- 移动设备优化 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -42,10 +43,191 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     
     <!-- 样式表 -->
-    <link rel="stylesheet" href="style.css?v=202501212121">
-    
+    <link rel="stylesheet" href="style.css?v=202502190847">
+    <style>
+        /* 自动敲击开关样式 */
+        .auto-knock-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            padding: 20px 0;
+            position: relative;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .auto-knock-switch::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(0, 0, 0, 0.1);
+        }
+        .switch-label {
+            color: #333;
+            font-size: 14px;
+            user-select: none;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            outline: none;
+        }
+        .switch input:focus {
+            outline: none;
+        }
+        .switch input:focus + .slider {
+            box-shadow: none;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        input:checked + .slider {
+            background-color:rgba(76, 175, 80, 0.8);
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+
+    <script>
+        // 检查是否在微信环境中
+        function isWeixinBrowser() {
+            const ua = navigator.userAgent.toLowerCase();
+            return ua.indexOf('micromessenger') !== -1;
+        }
+
+        // 动态加载微信 JS-SDK
+        function loadWxScript() {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://res.wx.qq.com/open/js/jweixin-1.6.0.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // 微信 JSSDK 配置
+        async function initWxConfig() {
+            // 如果不是微信环境，直接返回
+            if (!isWeixinBrowser()) {
+                return;
+            }
+
+            try {
+                await loadWxScript();
+                // 获取当前页面URL（去除#及其后面的部分）
+                const url = window.location.href.split('#')[0];
+                
+                // 从您的服务器获取配置信息
+                const response = await fetch('/wxapi/wx_config.php?url=' + encodeURIComponent(url));
+                const config = await response.json();
+                
+                // 配置微信 JSSDK
+                wx.config({
+                    debug: false,
+                    appId: config.appId,
+                    timestamp: config.timestamp,
+                    nonceStr: config.nonceStr,
+                    signature: config.signature,
+                    jsApiList: [
+                        'onMenuShareAppMessage',
+                        'onMenuShareTimeline',
+                        'updateAppMessageShareData',
+                        'updateTimelineShareData'
+                    ]
+                });
+
+                wx.ready(function () {
+                    updateWxShareInfo();
+                });
+
+                wx.error(function(res){
+                    console.error('微信 JSSDK 配置失败:', res);
+                    //alert('微信 JSSDK 配置失败，请刷新页面重试');
+                });
+            } catch (error) {
+                console.error('初始化微信配置失败:', error);
+                //alert('初始化微信配置失败，请刷新页面重试');
+            }
+        }
+
+        // 更新微信分享信息
+        function updateWxShareInfo() {
+            if (!isWeixinBrowser() || typeof wx === 'undefined' || !wx.ready) {
+                return;
+            }
+
+            const url = window.location.href.split('#')[0];
+            // 分享给朋友
+            wx.updateAppMessageShareData({ 
+                title: `正念木鱼 - 线上修行，获取内心平静`,
+                desc: '日日正念，福慧双修。持之以恒，方得始终。',
+                link: url,
+                imgUrl: window.location.origin + '/woodenfish/icon.png',
+                success: function () {
+                    console.log('分享设置成功');
+                },
+                fail: function(res) {
+                    console.error('分享设置失败:', res);
+                }
+            });
+            
+            // 分享到朋友圈
+            wx.updateTimelineShareData({ 
+                title: `正念木鱼 - 线上修行，获取内心平静`,
+                desc: '日日正念，福慧双修。持之以恒，方得始终。',
+                link: url,
+                imgUrl: window.location.origin + '/woodenfish/icon.png',
+                success: function () {
+                    console.log('朋友圈分享设置成功');
+                },
+                fail: function(res) {
+                    console.error('朋友圈分享设置失败:', res);
+                }
+            });
+        }
+
+        // 页面加载完成后初始化微信配置
+        window.addEventListener('load', async () => {
+            await initWxConfig();
+        });
+    </script>
+
     <!-- 结构化数据 -->
-    <script type="application/ld+json">
+    <!-- <script type="application/ld+json">
     {
         "@context": "http://schema.org",
         "@type": "WebApplication",
@@ -64,7 +246,7 @@
             "name": "正念木鱼"
         }
     }
-    </script>
+    </script> -->
     <script type="text/javascript">
         (function(c,l,a,r,i,t,y){
             c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
@@ -75,24 +257,27 @@
 </head>
 <body>
     <div class="total-stats">
-        <span id="totalHits">0 棒</span>
+        <span id="totalHits">0</span>
         <span class="stats-separator">·</span>
-        <span id="totalScore">0 灵子</span>
+        <span id="totalScore">0</span>
+        <span class="arrow-icon">›</span>
     </div>
     <div class="container">
         <div class="logo">
             <img src="logo.png" alt="正念木鱼 - 在线木鱼模拟器" class="logo-image">
         </div>
         <div class="stats">
-            <span id="hits">本次敲击 0 棒</span>
+            <span id="hits"></span>
             <span class="stats-separator">·</span>
-            <span id="score">获得 0 灵子</span>
+            <span id="score"></span>
         </div>
         <div class="woodfish-container">
             <img src="woodfish.png" alt="木鱼" id="woodfish" class="woodfish">
             <img src="stick.png" alt="木鱼棒" id="stick" class="stick">
         </div>
-        <button id="autoButton" class="auto-button">自动</button>
+        <button id="autoButton" class="auto-button">
+            <span class="button-text">开始</span>
+        </button>
     </div>
     <audio id="woodfish-sound" src="woodfish-sound2.mp3" preload="auto"></audio>
     <audio id="background-music" loop preload="auto"></audio>
@@ -100,35 +285,38 @@
     <div class="zen-text" id="zenText"></div>
     
     <div class="music-panel">
-        <button id="musicToggle" class="music-toggle">
-            <span class="music-icon">♪</span>
-        </button>
-        <div class="music-dropdown">
-            <div class="music-header">
-                <h4>正念梵音</h4>
-                <div class="volume-control">
-                    <input type="range" id="volumeSlider" min="0" max="100" value="30">
-                </div>
-            </div>
-            <div class="music-list">
-                <div class="music-item" data-src="music/Green-Tara-Mantra.mp3">
-                    <span class="music-name">绿度母心咒</span>
-                    <span class="music-duration">3:24</span>
-                </div>
-                <div class="music-item" data-src="music/The-Heart-Sutra.mp3">
-                    <span class="music-name">般若波罗蜜多心经</span>
-                    <span class="music-duration">3:44</span>
-                </div>
-                <div class="music-item" data-src="music/Forest-birds-singing.mp3">
-                    <span class="music-name">森林鸟鸣</span>
-                    <span class="music-duration">5:30</span>
-                </div>
-                <div class="music-item" data-src="music/waves-sound.mp3">
-                    <span class="music-name">沙滩浪花</span>
-                    <span class="music-duration">8:45</span>
-                </div>
+        <div class="music-header">
+            <h4>正念梵音</h4>
+            <div class="volume-control">
+                <input type="range" id="volumeSlider" min="0" max="100" value="30">
             </div>
         </div>
+        <div class="music-list">
+            <div class="music-item" data-src="music/Green-Tara-Mantra.mp3">
+                <span class="music-name">绿度母心咒</span>
+                <span class="music-duration">3:24</span>
+            </div>
+            <div class="music-item" data-src="music/The-Heart-Sutra.mp3">
+                <span class="music-name">般若波罗蜜多心经</span>
+                <span class="music-duration">3:44</span>
+            </div>
+            <div class="music-item" data-src="music/Forest-birds-singing.mp3">
+                <span class="music-name">森林鸟鸣</span>
+                <span class="music-duration">5:30</span>
+            </div>
+            <div class="music-item" data-src="music/waves-sound.mp3">
+                <span class="music-name">沙滩浪花</span>
+                <span class="music-duration">8:45</span>
+            </div>
+        </div>
+        <div class="auto-knock-switch">
+            <span class="switch-label">自动敲击木鱼</span>
+            <label class="switch">
+                <input type="checkbox" id="autoKnockToggle" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+        <button id="startMeditation" class="start-meditation-button">开始修行</button>
     </div>
     
     <div class="trend-overlay" id="trendOverlay"></div>
@@ -142,21 +330,48 @@
             <div id="monthlyList"></div>
         </div>
     </div>
-    <script src="script.js?v=202501212121" defer></script>
+    <script src="script.js?v=202502221846" defer></script>
 
-    <script>
+    <!-- 更新提示框 -->
+    <!-- <div id="update-toast" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); color: white; padding: 12px 24px; border-radius: 24px; z-index: 9999; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-size: 14px;">
+        <span>发现新版本</span>
+        <button onclick="updateApp()" style="margin-left: 12px; background: #4CAF50; border: none; color: white; padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 14px;">更新</button>
+    </div> -->
+
+<script>
+         // 更新应用
+        // function updateApp() {
+        //     // 强制清除所有缓存
+        //     caches.keys().then(keys => {
+        //         return Promise.all(
+        //             keys.map(key => caches.delete(key))
+        //         );
+        //     }).then(() => {
+        //         window.location.reload(true);
+        //     });
+        // }
+
         // 注册 Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker 注册成功:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('ServiceWorker 注册失败:', error);
-                    });
-            });
-        }
-    </script>
+        // if ('serviceWorker' in navigator) {
+        //     window.addEventListener('load', () => {
+        //         navigator.serviceWorker.register('sw.js?v=202502190889')
+        //             .then(registration => {
+        //                 console.log('ServiceWorker 注册成功');
+        //                 // 检查更新
+        //                 registration.addEventListener('updatefound', () => {
+        //                     const newWorker = registration.installing;
+        //                     newWorker.addEventListener('statechange', () => {
+        //                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        //                             document.getElementById('update-toast').style.display = 'block';
+        //                         }
+        //                     });
+        //                 });
+        //             })
+        //             .catch(error => {
+        //                 console.error('ServiceWorker 注册失败:', error);
+        //             });
+        //     });
+        // }
+    </script> 
 </body>
 </html>

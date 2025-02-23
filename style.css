@@ -23,8 +23,13 @@ button:focus {
 }
 
 .container {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     padding: 20px;
+    position: relative;
+    z-index: 1;
 }
 
 .total-stats {
@@ -58,17 +63,19 @@ button:focus {
 }
 
 .auto-button {
-    position: relative;
-    margin-top: 20px;
-    padding: 8px 16px;
-    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
     background-color: rgba(0, 0, 0, 0.1);
+    border: none;
     border-radius: 20px;
-    color: #666;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 0.9rem;
-    z-index: 1000;
+    margin: 20px auto;
+    color: #666;
 }
 
 .auto-button:active {
@@ -86,6 +93,25 @@ button:focus {
 
 .auto-button.active:hover {
     background-color: rgba(76, 175, 80, 0.4);
+}
+
+.auto-button .music-icon {
+    display: none;
+    transition: transform 0.5s ease;
+}
+
+.auto-button.active.playing .music-icon {
+    display: inline-block;
+    animation: rotate 4s linear infinite;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .logo-image {
@@ -121,7 +147,7 @@ h1 {
     width: 200px;
     height: 120px;
     margin: 0 auto;
-    margin-left: 12px;
+    margin-left: 60px;
 }
 
 .woodfish {
@@ -145,8 +171,8 @@ h1 {
     width: 80px;
     height: auto;
     position: absolute;
-    right: 0;
-    top: 10%;
+    right: 20px;
+    top: 15%;
     transform: translateY(-50%);
     pointer-events: none;
     transition: transform 0.1s;
@@ -455,12 +481,97 @@ h1 {
     gap: 10px;
 }
 
-/* 音乐面板样式 */
 .music-panel {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     z-index: 1000;
+    width: 300px;
+    max-width: 90vw;
+    display: none;
+}
+
+.music-panel.show {
+    display: block;
+}
+
+.music-header {
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.music-header h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.volume-control {
+    width: 100%;
+    padding: 10px 0;
+}
+
+.volume-control input[type="range"] {
+    width: 100%;
+}
+
+.music-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+}
+
+.music-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.music-item:hover {
+    background-color: #f5f5f5;
+}
+
+.music-item.active {
+    background-color: #e8e8e8;
+}
+
+.start-meditation-button {
+    width: 100%;
+    padding: 12px;
+    background-color: rgba(76, 175, 80, 0.8);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.start-meditation-button:hover {
+    background-color: rgba(76, 175, 80, 1);
+}
+
+.music-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: none;
+}
+
+.music-panel-overlay.show {
+    display: block;
 }
 
 .music-toggle {
@@ -598,16 +709,6 @@ h1 {
     color: #666;
 }
 
-/* 音符旋转动画 */
-@keyframes rotate {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 .music-icon {
     display: inline-block;
     transition: transform 0.3s ease;
@@ -617,12 +718,6 @@ h1 {
     animation: rotate 8s linear infinite;
 }
 
-/* 暂停时停止动画但保持当前位置 */
-.music-toggle:not(.playing) .music-icon {
-    animation-play-state: paused;
-}
-
-/* 禅修文字样式 */
 .zen-text {
     position: fixed;
     left: 50%;
@@ -646,4 +741,14 @@ h1 {
 .zen-text.show {
     opacity: 0.9;
     transform: translateX(-50%) translateY(0);
+}
+
+.arrow-icon {
+    margin-left: 4px;
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 300;
+    display: inline-flex;
+    align-items: center;
+    transform: translateY(-1px);
 }
