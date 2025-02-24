@@ -11,7 +11,7 @@
     <meta name="author" content="正念木鱼">
     <meta name="robots" content="index, follow">
     
-    <!-- PWA 相关 -->
+    <!-- PWA 相关（必须同时注册Service Worker） -->
     <link rel="manifest" href="manifest.json?v=202503021845">
     <meta name="theme-color" content="#f5f5f5">
     <meta name="mobile-web-app-capable" content="yes">
@@ -227,12 +227,12 @@
     </script>
 
     <!-- 结构化数据 -->
-    <!-- <script type="application/ld+json">
+    <script type="application/ld+json">
     {
         "@context": "http://schema.org",
         "@type": "WebApplication",
         "name": "正念木鱼",
-        "description": "一个在线木鱼模拟器，通过敲击木鱼获得内心的平静与祝福",
+        "description": "日日正念，福慧双修。持之以恒，方得始终。",
         "url": "https://www.maikami.com/woodenfish/",
         "applicationCategory": "Lifestyle",
         "operatingSystem": "All",
@@ -246,7 +246,7 @@
             "name": "正念木鱼"
         }
     }
-    </script> -->
+    </script>
     <script type="text/javascript">
         (function(c,l,a,r,i,t,y){
             c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
@@ -333,45 +333,45 @@
     <script src="script.js?v=202502221846" defer></script>
 
     <!-- 更新提示框 -->
-    <!-- <div id="update-toast" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); color: white; padding: 12px 24px; border-radius: 24px; z-index: 9999; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-size: 14px;">
+    <div id="update-toast" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); color: white; padding: 12px 24px; border-radius: 24px; z-index: 9999; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-size: 14px;">
         <span>发现新版本</span>
         <button onclick="updateApp()" style="margin-left: 12px; background: #4CAF50; border: none; color: white; padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 14px;">更新</button>
-    </div> -->
+    </div>
 
 <script>
          // 更新应用
-        // function updateApp() {
-        //     // 强制清除所有缓存
-        //     caches.keys().then(keys => {
-        //         return Promise.all(
-        //             keys.map(key => caches.delete(key))
-        //         );
-        //     }).then(() => {
-        //         window.location.reload(true);
-        //     });
-        // }
+        function updateApp() {
+            // 强制清除所有缓存
+            caches.keys().then(keys => {
+                return Promise.all(
+                    keys.map(key => caches.delete(key))
+                );
+            }).then(() => {
+                window.location.reload(true);
+            });
+        }
 
         // 注册 Service Worker
-        // if ('serviceWorker' in navigator) {
-        //     window.addEventListener('load', () => {
-        //         navigator.serviceWorker.register('sw.js?v=202502190889')
-        //             .then(registration => {
-        //                 console.log('ServiceWorker 注册成功');
-        //                 // 检查更新
-        //                 registration.addEventListener('updatefound', () => {
-        //                     const newWorker = registration.installing;
-        //                     newWorker.addEventListener('statechange', () => {
-        //                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-        //                             document.getElementById('update-toast').style.display = 'block';
-        //                         }
-        //                     });
-        //                 });
-        //             })
-        //             .catch(error => {
-        //                 console.error('ServiceWorker 注册失败:', error);
-        //             });
-        //     });
-        // }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js?v=202502190889')
+                    .then(registration => {
+                        console.log('ServiceWorker 注册成功');
+                        // 检查更新
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    document.getElementById('update-toast').style.display = 'block';
+                                }
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.error('ServiceWorker 注册失败:', error);
+                    });
+            });
+        }
     </script> 
 </body>
 </html>

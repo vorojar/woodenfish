@@ -1,12 +1,12 @@
-const CACHE_NAME = 'woodenfish-1.1.25';
+const CACHE_NAME = 'woodenfish-1.1.26';
 
 // 按类型分组的缓存资源
 const ASSETS = [
     // 核心文件
     //'index.html',
-    'style.css',
-    'script.js',
-    'manifest.json',
+    //'style.css',
+    //'script.js',
+   // 'manifest.json',
     
     // 图片资源
     'favicon.ico',
@@ -16,10 +16,10 @@ const ASSETS = [
     
     // 音频资源
     'woodfish-sound2.mp3',
-    'music/Green-Tara-Mantra.mp3',
-    'music/The-Heart-Sutra.mp3',
-    'music/Forest-birds-singing.mp3',
-    'music/waves-sound.mp3',
+    //'music/Green-Tara-Mantra.mp3',
+    //'music/The-Heart-Sutra.mp3',
+    //'music/Forest-birds-singing.mp3',
+    //'music/waves-sound.mp3',
     
     // PWA 图标
     'icons/icon-192x192.png',
