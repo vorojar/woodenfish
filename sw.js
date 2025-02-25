@@ -1,4 +1,4 @@
-const CACHE_NAME = 'woodenfish-1.1.26';
+const CACHE_NAME = 'woodenfish-1.1.27';
 
 // 按类型分组的缓存资源
 const ASSETS = [
