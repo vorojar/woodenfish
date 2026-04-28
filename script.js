@@ -93,7 +93,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 服务端返回 merge 后的最新数据，绕过 KV 最终一致性延迟
                     const merged = await r.json();
                     window.__mergeFromCloud?.(merged);
+                    return;
                 }
+                // 5xx / 其他非 ok：恢复 dirty，下次 markDirty 时重试
+                dirty = true;
             } catch (e) { dirty = true; /* 下次 markDirty 时重试 */ }
         }
 
@@ -130,11 +133,20 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) { return { ok: false, reason: 'network' }; }
         }
 
+        // 立即 push（无 debounce）：启动补传 / SW 接管后强制再同步用
+        function flush() {
+            if (!bindCode) return;
+            dirty = true;
+            if (timer) { clearTimeout(timer); timer = null; }
+            return push();
+        }
+
         return {
             getCode: () => bindCode,
             ensureCode,
             pullAndMerge,
             markDirty,
+            flush,
             bindNewCode,
             onChange: (cb) => { callbacks.add(cb); return () => callbacks.delete(cb); },
         };
@@ -459,13 +471,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 启动云同步：注册或拉取
+    // 启动云同步：注册 → 拉云端 → 若本地 > 云端补传一次（防之前离线 / push 失败积压）
     (async () => {
         await sync.ensureCode();
         const cloud = await sync.pullAndMerge();
         if (cloud) window.__mergeFromCloud(cloud);
         renderSyncBar();
+        const cloudHits = cloud?.totalHits || 0;
+        if (totalStoredHits > cloudHits) sync.flush();
     })();
+
+    // SW 接管页面（新版本激活）后再 pull 一次，确保读不到旧 SW 缓存里被污染的同步数据
+    if ('serviceWorker' in navigator) {
+        let swSwapped = false;
+        navigator.serviceWorker.addEventListener('controllerchange', async () => {
+            if (swSwapped) return;
+            swSwapped = true;
+            const cloud = await sync.pullAndMerge();
+            if (cloud) window.__mergeFromCloud(cloud);
+        });
+    }
 
     // 同步状态条 UI
     const syncBar = document.getElementById('syncBar');

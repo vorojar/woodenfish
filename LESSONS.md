@@ -77,3 +77,21 @@
 **症状**：sw.js 里 `index.html` 走 cache-first 且版本号不变 → 用户首次访问后该浏览器永远拿不到新 HTML。改 SW 必须升 `CACHE_NAME`。
 
 **预防**：HTML/CSS/JS 默认走 **network-first**，cache 只是离线兜底。版本号管理统一在 `CACHE_NAME` 里，不要散落在各处 `?v=20250222184` query string。
+
+## 11. SW 的 cache-first 兜底会污染动态接口（HTTP 缓存层之外）
+
+**症状**：v1.5.1 跨设备同步停在 29，KV 已是 984。fetch handler 写"已知核心代码 network-first，**其他全部** cache-first + `cache.put`"——跨源 `GET /sync/:code` 第一次响应被永久写进 Cache Storage，HTTP 头/客户端 `cache:'no-store'` 都挡不住，因为 SW 在它们前面。即便修完后老用户首次刷新仍读旧值，旧 SW 还在 controller 位置先拦截。
+
+**预防**：fetch handler 必须 `if (url.origin !== self.location.origin) return;`，同源动态接口（`/api/`、`/sync/`）加路径黑名单。客户端听 `controllerchange` 在新 SW 接管时主动重跑关键业务（**不要 reload**）。调缓存问题先开 Application → Cache Storage 看，比查 HTTP 头快 10 倍。
+
+## 12. push 静默吞失败 + 启动不主动补传
+
+**症状**：sync 模块 `dirty=false; try{fetch}catch{dirty=true}` 只对网络断重试，5xx/`!r.ok` 不抛会吃掉 dirty。`dirty` 是内存状态刷新就丢，离线积压的本地数据下次打开页面只 pull 不 push，用户不敲新的就永远不补传。
+
+**预防**：fetch 后只有"成功路径 return"，**其他全部恢复 dirty=true**——fetch 不抛 ≠ 成功。启动 pullAndMerge 后比对 `本地 > 云端` 立即 flush，等价于"启动把差异当 dirty"。
+
+## 13. 修完非平凡 bug 让另一个 AI 独立 review
+
+**实践**：Claude 修了 SW 缓存污染推上 1.5.1，让 codex review。codex 验证 root cause 正确还抓出 4 个连带 bug（教训 11-12 大多来自这次 review）+ 3 个架构延伸风险。同一修复者盲区高度相关，独立视角拉出一圈连带问题。
+
+**预防**：分清 A 类（立刻该修的连带 bug）和 B 类（架构改造话题，记 LESSONS 不立刻动），别一个 bug 拖出十个新功能。

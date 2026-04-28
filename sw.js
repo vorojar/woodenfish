@@ -1,6 +1,5 @@
-const CACHE_NAME = 'woodenfish-1.5.1';
+const CACHE_NAME = 'woodenfish-1.5.2';
 const SCOPE_PATH = '/';
-const SYNC_API_HOST = 'woodenfish-sync.vorojar.workers.dev';
 
 // 预缓存核心资源（HTML/CSS/JS 都进，确保离线能开页）
 const ASSETS = [
@@ -79,8 +78,9 @@ self.addEventListener('fetch', event => {
 
     const url = new URL(event.request.url);
 
-    // 同步 API 必须每次走网络拿最新数据，跳过 SW 不拦截、不缓存
-    if (url.host === SYNC_API_HOST) return;
+    // 跨源请求（同步 API、第三方 SDK 配置接口等）一律不拦截不缓存
+    // SW 默认 cache-first 兜底分支会把动态接口的第一次响应永久写入 Cache Storage 污染数据
+    if (url.origin !== self.location.origin) return;
 
     // 核心代码：network-first，失败回退缓存
     if (isCoreCode(url)) {

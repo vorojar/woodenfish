@@ -2,6 +2,21 @@
 
 本文件记录正念木鱼项目的发布历史。版本号对应 `sw.js` 的 `CACHE_NAME`。
 
+## [1.5.2] - 2026-04-28
+
+> codex 独立 review 1.5.1 后发现的几个增强 + 残留问题修复。
+
+### 同步健壮性增强
+- **SW 跨源 GET 一律放行**：1.5.1 只点名跳过 sync host，但 `/wxapi/wx_config.php` 等其他动态接口仍会被 cache-first 污染。改为 `url.origin !== self.location.origin` 整段跳过，从根上挡掉 SW 缓存污染动态接口的可能。
+- **`push()` 5xx 自动重试**：之前 `!r.ok` 时 `dirty` 已被设回 false，5xx/限流响应静默丢失重试机会，只有抛异常的网络错才会恢复。现在非 ok 一律恢复 `dirty=true`，下次 markDirty 时再推。
+- **启动时本地 > 云端自动补传**：刷新页面后 `dirty` 状态丢失，之前积压的本地敲击只能等用户再敲一次才会推上去。现在启动 pullAndMerge 后比较 `totalHits`，本地大就立即 `sync.flush()` 主动推一次。
+- **SW 接管页面后自动重新 pull**：旧 1.5.x SW 已把同步响应写进了 Cache Storage，新 SW 激活前的首次刷新仍可能读到旧数据。监听 `controllerchange`，新 SW 接管时再 `pullAndMerge` 一次。
+- 新增 `sync.flush()` 公开方法（无 debounce 立即推送）
+
+### 部署
+- SW CACHE_NAME: 1.5.1 → 1.5.2
+- `index.html` 的 `script.js` / `style.css` query string 升 1.5.1 → 1.5.2
+
 ## [1.5.1] - 2026-04-28
 
 ### 修复（严重）
