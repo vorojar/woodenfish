@@ -17,11 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const sync = (() => {
         const API = 'https://woodenfish-sync.vorojar.workers.dev';
         const DEBOUNCE_MS = 5000;
+        const POLL_INTERVAL_MS = 15000; // consumer 模式 polling 间隔
+        const IDLE_THRESHOLD_MS = 10000; // 距上次敲击 ≥ 10s 才转 consumer
         const callbacks = new Set();
         let bindCode = storage.get('bindCode');
         let dirty = false;
         let timer = null;
         let pulling = false;
+        let lastSeenAt = 0;       // 上次拿到的云端 updatedAt（since 参数用）
+        let lastHitAt = 0;        // 上次敲击时间
+        let pollTimer = null;     // consumer mode polling timer
+        let pollAbort = null;     // 当前 in-flight poll fetch abort
 
         function emit() { callbacks.forEach(cb => { try { cb(bindCode); } catch (e) {} }); }
 
@@ -62,7 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     return null;
                 }
                 if (!r.ok) return null;
-                return await r.json();
+                const data = await r.json();
+                if (data?.updatedAt) lastSeenAt = data.updatedAt;
+                return data;
             } catch (e) { return null; }
             finally { pulling = false; }
         }
@@ -70,10 +78,74 @@ document.addEventListener('DOMContentLoaded', () => {
         function markDirty() {
             if (!bindCode) return;
             dirty = true;
+            lastHitAt = Date.now();
+            // 自己在敲 = producer，停掉 consumer polling 避免无意义读 + 避免回声覆盖
+            stopPolling();
             // throttle：已有 timer 排队时不重置，保证持续敲击下最多 5 秒一次同步
             // （之前 clearTimeout + setTimeout 是 debounce，连敲不停时永远不推）
             if (timer) return;
             timer = setTimeout(() => { timer = null; push(); }, DEBOUNCE_MS);
+        }
+
+        // ===== Consumer mode：长时间不敲 + 标签页可见时短 poll 拉别处的更新 =====
+
+        function shouldPoll() {
+            return !!bindCode
+                && document.visibilityState === 'visible'
+                && Date.now() - lastHitAt > IDLE_THRESHOLD_MS;
+        }
+
+        async function pollOnce() {
+            if (!bindCode) return;
+            try {
+                pollAbort = new AbortController();
+                const url = API + '/sync/' + bindCode + (lastSeenAt ? '?since=' + lastSeenAt : '');
+                const r = await fetch(url, { cache: 'no-store', signal: pollAbort.signal });
+                pollAbort = null;
+                if (r.status === 304) return; // 未变，KV read 1 次但无 body
+                if (r.status === 404) {
+                    storage.remove('bindCode');
+                    bindCode = null;
+                    stopPolling();
+                    emit();
+                    return;
+                }
+                if (!r.ok) return;
+                const data = await r.json();
+                if (data?.updatedAt) lastSeenAt = data.updatedAt;
+                window.__mergeFromCloud?.(data);
+            } catch (e) { /* abort / network */ }
+        }
+
+        function schedulePoll() {
+            if (pollTimer) return;
+            pollTimer = setTimeout(async () => {
+                pollTimer = null;
+                if (!shouldPoll()) return;
+                await pollOnce();
+                if (shouldPoll()) schedulePoll();
+            }, POLL_INTERVAL_MS);
+        }
+
+        function startPolling() {
+            if (!shouldPoll()) return;
+            schedulePoll();
+        }
+
+        function stopPolling() {
+            if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+            if (pollAbort) { try { pollAbort.abort(); } catch (e) {} pollAbort = null; }
+        }
+
+        // 标签页隐藏 → 立即停 poll；可见 → 重启
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') startPolling();
+            else stopPolling();
+        });
+
+        // 停敲 IDLE_THRESHOLD 后转 consumer：每次敲设一个延迟 timer 检查
+        function scheduleIdleCheck() {
+            setTimeout(() => { if (shouldPoll() && !pollTimer) startPolling(); }, IDLE_THRESHOLD_MS + 100);
         }
 
         async function push() {
@@ -94,7 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (r.ok) {
                     // 服务端返回 merge 后的最新数据，绕过 KV 最终一致性延迟
                     const merged = await r.json();
+                    if (merged?.updatedAt) lastSeenAt = merged.updatedAt;
                     window.__mergeFromCloud?.(merged);
+                    // push 完调度一次 idle 检查：停敲 10 秒后自动转 consumer mode
+                    scheduleIdleCheck();
                     return;
                 }
                 // 5xx / 其他非 ok：恢复 dirty，下次 markDirty 时重试
@@ -126,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cloud = await r.json();
                 bindCode = newCode;
                 storage.set('bindCode', newCode);
+                if (cloud?.updatedAt) lastSeenAt = cloud.updatedAt;
                 emit();
                 // 拉取后立即触发合并 + 推一次（把本地未同步数据合并上去）
                 window.__mergeFromCloud?.(cloud);
@@ -149,6 +225,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pullAndMerge,
             markDirty,
             flush,
+            startPolling,
+            stopPolling,
             bindNewCode,
             onChange: (cb) => { callbacks.add(cb); return () => callbacks.delete(cb); },
         };
@@ -481,6 +559,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSyncBar();
         const cloudHits = cloud?.totalHits || 0;
         if (totalStoredHits > cloudHits) sync.flush();
+        // 启动 consumer 模式：标签页可见 + 长时间不敲时定期 poll 拉别处的更新
+        sync.startPolling();
     })();
 
     // SW 接管页面（新版本激活）后再 pull 一次，确保读不到旧 SW 缓存里被污染的同步数据
@@ -491,6 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
             swSwapped = true;
             const cloud = await sync.pullAndMerge();
             if (cloud) window.__mergeFromCloud(cloud);
+            sync.startPolling();
         });
     }
 

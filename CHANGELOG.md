@@ -2,6 +2,27 @@
 
 本文件记录正念木鱼项目的发布历史。版本号对应 `sw.js` 的 `CACHE_NAME`。
 
+## [1.5.4] - 2026-04-28
+
+### 新功能：被动式实时同步（不刷新就能看到对方）
+
+按"producer / consumer 角色按敲击行为切换"思路实现，在 KV 用量极低的前提下做到接近实时：
+
+- **角色定义**：同一 bindCode 下，正在敲的设备 = producer（push 不订阅）；标签页可见且距上次敲击 ≥ 10 秒的设备 = consumer（订阅不 push）。一台设备同一时刻只属于一种角色，自然消除回声 / 状态覆盖问题。
+- **Consumer 短 poll**：15 秒一次 GET，标签页隐藏 / pagehide 立即停。打开多端 + 长时间不敲的设备才会持续 polling，否则不耗 KV。
+- **Worker 端 304 短路**：`GET /sync/:code?since=<updatedAt>` 若 updatedAt 未变直接返回 304 空 body 省带宽（KV 仍 1 read）。
+- **lastSeenAt 状态**：push 拿到 merged 响应、bindNewCode、pullAndMerge 都同步更新，下次 poll 带上 since 参数避免重复拉同一份数据。
+
+### KV 用量估算（免费层 100k reads/天）
+- 1 个 consumer 持续在线 1 小时 ≈ 240 reads
+- 实测多数用户为 producer 或离线，consumer 时间通常 < 30%
+- 在 ~1000 日活规模内可在免费层运行；超出后升 KV 付费层 $0.50/百万 reads
+
+### 部署
+- SW CACHE_NAME: 1.5.3 → 1.5.4
+- `index.html` 的 `script.js` / `style.css` query string 升 1.5.3 → 1.5.4
+- Worker 已部署（Version `b57d0cf8`）
+
 ## [1.5.3] - 2026-04-28
 
 ### 修复（严重）

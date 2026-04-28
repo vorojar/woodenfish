@@ -95,7 +95,14 @@ async function handleGet(code, request, env) {
     if (!isValidCode(code)) return json({ error: 'invalid_code' }, 400, request);
     const raw = await env.DATA.get(code);
     if (!raw) return json({ error: 'not_found' }, 404, request);
-    return json(JSON.parse(raw), 200, request);
+    // ?since=<updatedAt>：客户端 polling 时若 updatedAt 未变直接 304，省带宽（KV 仍 1 read）
+    const url = new URL(request.url);
+    const since = parseInt(url.searchParams.get('since') || '0');
+    const data = JSON.parse(raw);
+    if (since && data.updatedAt && data.updatedAt <= since) {
+        return new Response(null, { status: 304, headers: corsHeaders(request) });
+    }
+    return json(data, 200, request);
 }
 
 async function handlePut(code, request, env) {
