@@ -2,6 +2,17 @@
 
 本文件记录正念木鱼项目的发布历史。版本号对应 `sw.js` 的 `CACHE_NAME`。
 
+## [1.5.1] - 2026-04-28
+
+### 修复（严重）
+- **跨设备同步失效**：SW 的 fetch handler 对所有非核心代码 GET 请求走 cache-first 并写入 Cache Storage，导致 `GET /sync/:code` 第一次的响应被永久缓存，之后任何设备拉云端永远拿到第一次那份旧数据，新数据再多也合不进来。fix：SW 检测到 host 为 `woodenfish-sync.vorojar.workers.dev` 时直接 `return` 不拦截。
+- Worker 响应头补 `Cache-Control: no-store`，挡住浏览器/中间代理的二次缓存。
+- 客户端 `pullAndMerge` 和 `bindNewCode` 的 `fetch` 加 `cache: 'no-store'`，最后一道保险。
+
+### 部署
+- SW CACHE_NAME: 1.5.0 → 1.5.1（新 SW 激活时会自动清掉 1.5.0 缓存里被污染的同步响应）
+- `index.html` 的 `script.js` / `style.css` query string 升 1.5.0 → 1.5.1
+
 ## [1.5.0] - 2026-04-28
 
 ### 云同步（核心新功能）

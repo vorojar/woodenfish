@@ -49,6 +49,7 @@ function json(body, status, request) {
         status,
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'no-store',
             ...corsHeaders(request),
         },
     });

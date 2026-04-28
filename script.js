@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!bindCode || pulling) return null;
             pulling = true;
             try {
-                const r = await fetch(API + '/sync/' + bindCode);
+                const r = await fetch(API + '/sync/' + bindCode, { cache: 'no-store' });
                 if (r.status === 404) {
                     // 码失效（KV 被清等）→ 重新注册
                     storage.remove('bindCode');
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async function bindNewCode(newCode) {
             // 用户输入恢复码：拉云端 → 合并 → 切码
             try {
-                const r = await fetch(API + '/sync/' + newCode);
+                const r = await fetch(API + '/sync/' + newCode, { cache: 'no-store' });
                 if (r.status === 404) return { ok: false, reason: 'not_found' };
                 if (!r.ok) return { ok: false, reason: 'network' };
                 const cloud = await r.json();
