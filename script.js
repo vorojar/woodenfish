@@ -1,4 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // localStorage 安全包装：隐身模式 / 配额满 / 禁 cookie 时不抛异常
+    const storage = {
+        get(key) {
+            try { return window.localStorage.getItem(key); } catch (e) { return null; }
+        },
+        set(key, value) {
+            try { window.localStorage.setItem(key, value); return true; }
+            catch (e) { console.warn('storage.set 失败:', key, e.name); return false; }
+        },
+        remove(key) {
+            try { window.localStorage.removeItem(key); } catch (e) { /* noop */ }
+        }
+    };
+
     const woodfish = document.getElementById('woodfish');
     const stick = document.getElementById('stick');
     const sound = document.getElementById('woodfish-sound');
@@ -22,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const musicPanel = document.querySelector('.music-panel');
     const autoKnockToggle = document.getElementById('autoKnockToggle');
 
-    let currentMusic = localStorage.getItem('selectedMusic');
+    let currentMusic = storage.get('selectedMusic');
     let isMeditating = false;
 
     // 恢复已选择的音乐
@@ -34,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // localStorage 里的 selectedMusic 已不在当前曲库，清掉避免污染状态
             currentMusic = null;
-            localStorage.removeItem('selectedMusic');
+            storage.remove('selectedMusic');
         }
 
         // 如果有默认音乐，添加音符图标
@@ -107,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 backgroundMusic.pause();
                 item.classList.remove('active');
                 currentMusic = null;
-                localStorage.removeItem('selectedMusic');
+                storage.remove('selectedMusic');
                 // 移除音乐图标
                 const musicIcon = autoButton.querySelector('.music-icon');
                 if (musicIcon) {
@@ -133,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 保存选择到本地存储
-            localStorage.setItem('selectedMusic', src);
+            storage.set('selectedMusic', src);
 
             // 播放音乐
             if (canPlayMusic()) {
@@ -150,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             autoButton.classList.remove('active');
             autoButton.querySelector('.button-text').textContent = '开始修行';
             backgroundMusic.pause();
-            endMeditation();
+            stopAutoHit();
         } else {
             showMusicPanel();
         }
@@ -193,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentMusic) {
                 backgroundMusic.pause();
             }
-            endMeditation();
+            stopAutoHit();
         }
         hideMusicPanel();
     });
@@ -215,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ambientSoundToggle.addEventListener('change', () => {
             if (!ambientSoundToggle.checked) {
                 currentMusic = null;
-                localStorage.removeItem('selectedMusic');
+                storage.remove('selectedMusic');
                 musicItems.forEach(i => i.classList.remove('active'));
                 const musicIcon = autoButton.querySelector('.music-icon');
                 if (musicIcon) musicIcon.remove();
@@ -242,18 +256,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 结束冥想时调用：停定时器 + 上传未提交数据
-    function endMeditation() {
-        stopAutoHit();
-        if (typeof pendingHits !== 'undefined' && pendingHits > 0) {
-            uploadData();
-        }
-    }
-
     let hitCount = 0;
     let dailyData = (() => {
         try {
-            return JSON.parse(localStorage.getItem('dailyData')) || {};
+            return JSON.parse(storage.get('dailyData')) || {};
         } catch (e) {
             console.warn('dailyData 解析失败，已重置:', e);
             return {};
@@ -270,8 +276,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 从localStorage加载总计数据
-    let totalStoredHits = parseInt(localStorage.getItem('totalHits')) || 0;
-    let totalStoredScore = parseInt(localStorage.getItem('totalScore')) || 0;
+    let totalStoredHits = parseInt(storage.get('totalHits')) || 0;
+    let totalStoredScore = parseInt(storage.get('totalScore')) || 0;
 
     // 获取今日数据
     function getTodayData() {
@@ -307,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         dailyData[currentDate].hits = (dailyData[currentDate].hits || 0) + hits;
         dailyData[currentDate].score = (dailyData[currentDate].score || 0) + score;
-        localStorage.setItem('dailyData', JSON.stringify(dailyData));
+        storage.set('dailyData', JSON.stringify(dailyData));
     }
 
     // 获取本月的日期数组
@@ -436,6 +442,14 @@ document.addEventListener('DOMContentLoaded', () => {
         trendOverlay.classList.remove('show');
     });
 
+    // PWA shortcut: ?view=trend 自动打开趋势面板
+    if (new URLSearchParams(location.search).get('view') === 'trend') {
+        trendPanel.classList.add('show');
+        trendOverlay.classList.add('show');
+        renderHeatmap();
+        renderMonthlyList();
+    }
+
     // 显示禅修文字的函数
     function showZenText() {
         const now = Date.now();
@@ -506,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 更新总计数据
         totalStoredScore += points;
-        localStorage.setItem('totalScore', totalStoredScore);
+        storage.set('totalScore', totalStoredScore);
         totalScoreElement.textContent = `${totalStoredScore} 灵子`;
 
         // 更新每日数据
@@ -525,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 更新总计数据
         totalStoredHits++;
-        localStorage.setItem('totalHits', totalStoredHits);
+        storage.set('totalHits', totalStoredHits);
         totalHitsElement.textContent = `${totalStoredHits} 棒`;
 
         // 更新每日数据
@@ -574,150 +588,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let isZenTextVisible = false; // 标记文字是否正在显示
     let lastHitTime = Date.now(); // 记录上次敲击时间
 
-    // 会话管理和数据上传相关变量
-    let pendingHits = 0;
-    let pendingScore = 0;
-    let sessionHash = '';
-    let isUploading = false;
     const buttonText = autoButton.querySelector('.button-text');
 
-    // 更新按钮文本的函数
     function updateButtonText(text) {
         if (buttonText) {
             buttonText.textContent = text;
-        } else {
-            console.warn('按钮文本元素不存在');
-        }
-    }
-
-    // 生成会话哈希值
-    function generateSessionHash() {
-        // 基于时间戳和随机数生成初始哈希
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2);
-        return btoa(`${timestamp}:${random}`); // 使用 base64 编码
-    }
-
-    // 基于前一个哈希值和当前数据生成新的哈希值
-    function generateNewHash(previousHash, data) {
-        const dataString = JSON.stringify(data);
-        // 将前一个哈希值和数据组合
-        const combinedString = `${previousHash}:${dataString}`;
-        // 在实际项目中，建议使用更安全的哈希算法，如 SHA-256
-        return btoa(combinedString);
-    }
-
-    // 初始化会话
-    async function initSession() {
-        const initialHash = generateSessionHash();
-        try {
-            // TODO: 实现后端 API
-            /*
-            const response = await fetch('你的API地址/init-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    initialHash: initialHash,
-                    timestamp: Date.now()
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error('初始化会话失败');
-            }
-            */
-
-            // 模拟成功响应
-            console.log('会话初始化成功:', initialHash);
-            sessionHash = initialHash;
-        } catch (error) {
-            console.error('初始化会话失败:', error);
-            // 5秒后重试
-            setTimeout(initSession, 5000);
-        }
-    }
-
-    // 准备上传数据
-    function prepareUploadData() {
-        // 简化的数据结构，只包含本轮的敲击总数和灵子总数
-        const summaryData = {
-            hitsCount: pendingHits,
-            scoreTotal: pendingScore,
-            timestamp: Date.now()
-        };
-
-        const dataToUpload = {
-            previousHash: sessionHash,
-            data: summaryData,
-            timestamp: Date.now()
-        };
-
-        // 生成新的哈希值，基于前一个哈希值和当前数据
-        dataToUpload.newHash = generateNewHash(sessionHash, summaryData);
-        return dataToUpload;
-    }
-
-    // 上传数据到服务器
-    async function uploadData() {
-        if (pendingHits === 0 || isUploading) return;
-
-        isUploading = true;
-        const dataToUpload = prepareUploadData();
-
-        console.log('上传前的哈希值:', {
-            currentSessionHash: sessionHash,
-            uploadPreviousHash: dataToUpload.previousHash,
-            uploadNewHash: dataToUpload.newHash
-        });
-
-        try {
-            // TODO: 实现后端 API
-            /*
-            const response = await fetch('你的API地址/upload-hits', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(dataToUpload)
-            });
-            
-            if (!response.ok) {
-                throw new Error('网络请求失败');
-            }
-            
-            const result = await response.json();
-            if (!result.hashValid) {
-                throw new Error('哈希值验证失败');
-            }
-            */
-
-            // 模拟成功上传
-            console.log('数据上传成功:', dataToUpload);
-
-            // 更新会话哈希值
-            const oldHash = sessionHash;
-            sessionHash = dataToUpload.newHash;
-            console.log('哈希值更新:', {
-                oldHash: oldHash,
-                newHash: sessionHash
-            });
-
-            // 清空已上传的数据计数
-            pendingHits = 0;
-            pendingScore = 0;
-        } catch (error) {
-            console.error('上传失败:', error);
-            // 如果是哈希值验证失败，重新初始化会话
-            if (error.message === '哈希值验证失败') {
-                initSession();
-            } else {
-                // 其他错误5秒后重试
-                setTimeout(uploadData, 5000);
-            }
-        } finally {
-            isUploading = false;
         }
     }
 
@@ -750,41 +625,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const bonus = Math.floor(Math.random() * 3) + 1;
                 createBubble(bonus);
                 updateScore(bonus);
-
-                // 累计本轮获得的灵子数
-                pendingScore += bonus;
             }
         } else {
             // 无奖励时显示"棒"
             createBubble("棒", false);
         }
-
-        // 记录本轮敲击次数
-        pendingHits++;
-
-        // 每50次击打或停止时上传数据
-        if (pendingHits >= 50) {
-            uploadData();
-        }
     }
 
-    // 在页面关闭前上传未同步的数据
-    window.addEventListener('beforeunload', () => {
-        if (pendingHits > 0) {
-            const dataToUpload = prepareUploadData();
-            console.log('页面关闭前保存数据:', dataToUpload);
-
-            // TODO: 实现后端 API
-            /*
-            navigator.sendBeacon('你的API地址/upload-hits', JSON.stringify(dataToUpload));
-            */
-        }
-    });
-
-    // 在开始敲击或页面加载时初始化会话
-    initSession();
-
-    // 在文件开头添加音乐播放检查函数
     function canPlayMusic() {
         // 检查全局控制函数是否存在
         if (typeof window.shouldPlayMusic === 'function') {

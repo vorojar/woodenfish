@@ -2,6 +2,35 @@
 
 本文件记录正念木鱼项目的发布历史。版本号对应 `sw.js` 的 `CACHE_NAME`。
 
+## [1.4.0] - 2026-04-28
+
+### 法律 / 合规
+- 新增 `LICENSE` 文件（MIT），README 声明的 MIT 落地
+
+### 健壮性
+- 新增 `storage` 安全包装：`localStorage.setItem` 在隐身模式 / 配额满 / 禁 cookie 时不抛异常，降级为 `console.warn`
+- 删除全部 mock 上传代码（`initSession` / `uploadData` / `prepareUploadData` / `generateSessionHash` / `pendingHits` / `beforeunload` 上传等），减少误导，net `-150` 行
+
+### 无障碍
+- viewport `maximum-scale=1.0, user-scalable=no` 改回允许缩放（WCAG 1.4.4）
+- viewport 加 `viewport-fit=cover` 适配刘海屏
+
+### iOS PWA 体验
+- 新增 9 张 `apple-touch-startup-image`（覆盖 iPhone 8 → 16, iPad → iPad Pro 12.9"）
+- 新增 iOS Safari "添加到主屏" 引导横幅，可一次性关闭（记住偏好）
+
+### Manifest 增强
+- 新增 `screenshots`（首页竖屏 / 趋势面板竖屏 / 桌面横屏 3 张）→ Chrome 安装提示卡片更丰富
+- 新增 `shortcuts`：长按图标可直达"修行趋势"
+- 新增 `lang` / `dir` / `categories` / `orientation` 等 PWA 完整字段
+- icons 拆分 `purpose: any` 与 `purpose: maskable`，避免 Android adaptive icon 误裁
+
+### 路由
+- 新增 `?view=trend` query 参数自动打开趋势面板（配合 PWA shortcut）
+
+### 部署
+- SW CACHE_NAME: 1.3.1 → 1.4.0
+
 ## [1.3.1] - 2026-04-28
 
 ### 部署

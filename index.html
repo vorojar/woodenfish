@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
     <!-- 基础SEO标签 -->
     <title>正念木鱼 - 在线电子木鱼｜冥想正念修行 PWA</title>
@@ -39,6 +39,17 @@
     <!-- 网站图标 -->
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- iOS PWA 启动屏（按设备分辨率匹配） -->
+    <link rel="apple-touch-startup-image" href="icons/splash/iphone-16.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="icons/splash/iphone-15.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="icons/splash/iphone-13.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="icons/splash/iphone-x.png"  media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="icons/splash/iphone-xr.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="icons/splash/iphone-8.png"  media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="icons/splash/ipad-pro-12.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="icons/splash/ipad-11.png"   media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="icons/splash/ipad.png"      media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2)">
 
     <!-- 样式表 -->
     <link rel="stylesheet" href="style.css?v=202502190848">
@@ -462,6 +473,23 @@
             style="margin-left: 12px; background: #4CAF50; border: none; color: white; padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 14px;">更新</button>
     </div>
 
+    <!-- iOS 添加到主屏引导（仅 iOS Safari 且未安装时显示） -->
+    <div id="a2hs-tip" style="display: none; position: fixed; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); background: rgba(255,255,255,0.98); color: #333; padding: 14px 16px; border-radius: 14px; z-index: 9998; box-shadow: 0 6px 20px rgba(0,0,0,0.15); font-size: 14px; line-height: 1.5; backdrop-filter: blur(10px);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <img src="icons/icon-192x192.png" alt="" style="width: 40px; height: 40px; border-radius: 9px; flex-shrink: 0;">
+            <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 2px;">把正念木鱼装到桌面</div>
+                <div style="color: #666; font-size: 12px;">点击底部 <span style="display:inline-block; vertical-align:-3px;">
+                    <svg width="14" height="18" viewBox="0 0 14 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;">
+                        <path d="M7 12V2M7 2L3 6M7 2L11 6" stroke="#007aff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 9V15C2 15.5523 2.44772 16 3 16H11C11.5523 16 12 15.5523 12 15V9" stroke="#007aff" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg></span> 然后选 "添加到主屏幕"，可离线使用</div>
+            </div>
+            <button id="a2hs-close" aria-label="关闭"
+                style="background: none; border: none; color: #999; font-size: 22px; line-height: 1; padding: 4px 8px; cursor: pointer;">×</button>
+        </div>
+    </div>
+
     <script>
         // 更新应用：只清自己的缓存（前缀 woodenfish-），不影响同域其他 PWA
         function updateApp() {
@@ -501,6 +529,30 @@
         window.shouldPlayMusic = function () {
             return typeof window.isMusicAllowed === 'function' && window.isMusicAllowed();
         };
+
+        // iOS Safari "添加到主屏" 引导
+        (function () {
+            const ua = navigator.userAgent;
+            const isIOS = /iPhone|iPad|iPod/.test(ua) && !window.MSStream;
+            const isSafari = !/CriOS|FxiOS|EdgiOS|OPiOS|mercury/i.test(ua);
+            const isStandalone = window.navigator.standalone === true ||
+                window.matchMedia('(display-mode: standalone)').matches;
+            let dismissed = false;
+            try { dismissed = localStorage.getItem('a2hs-dismissed') === '1'; } catch (e) { /* noop */ }
+
+            if (isIOS && isSafari && !isStandalone && !dismissed) {
+                window.addEventListener('load', () => {
+                    setTimeout(() => {
+                        const tip = document.getElementById('a2hs-tip');
+                        if (tip) tip.style.display = 'block';
+                    }, 1500);
+                });
+                document.getElementById('a2hs-close').addEventListener('click', () => {
+                    document.getElementById('a2hs-tip').style.display = 'none';
+                    try { localStorage.setItem('a2hs-dismissed', '1'); } catch (e) { /* noop */ }
+                });
+            }
+        })();
     </script>
 </body>
 

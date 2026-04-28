@@ -1,24 +1,74 @@
 {
     "name": "正念木鱼",
     "short_name": "正念木鱼",
-    "description": "正念木鱼 - 日日正念，福慧双修。持之以恒，方得始终。",
+    "description": "在线电子木鱼 PWA — 一键敲击/自动敲击 + 心经/绿度母心咒等正念梵音 + 每日修行记录。免费、可桌面安装、可离线使用。",
+    "lang": "zh-CN",
+    "dir": "ltr",
+    "categories": ["lifestyle", "health", "productivity"],
     "start_url": "https://woodenfish.bibidu.com/",
     "scope": "https://woodenfish.bibidu.com/",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "orientation": "portrait",
+    "background_color": "#f5f5f5",
     "theme_color": "#f5f5f5",
     "icons": [
         {
             "src": "icons/icon-192x192.png",
             "sizes": "192x192",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
         },
         {
             "src": "icons/icon-512x512.png",
             "sizes": "512x512",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "icons/screenshots/narrow-home.png",
+            "sizes": "390x844",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "首页 — 敲击木鱼修行"
+        },
+        {
+            "src": "icons/screenshots/narrow-trend.png",
+            "sizes": "390x844",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "正念趋势 — 每日修行记录"
+        },
+        {
+            "src": "icons/screenshots/wide-home.png",
+            "sizes": "1280x800",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "桌面端首页"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "查看修行趋势",
+            "short_name": "趋势",
+            "description": "查看每日敲击热力图与月度统计",
+            "url": "/?view=trend",
+            "icons": [
+                { "src": "icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" }
+            ]
         }
     ]
 }
