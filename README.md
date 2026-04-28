@@ -50,7 +50,7 @@
 
 ### 方式一：直接使用
 
-1. 访问在线地址：[https://vorojar.github.io/woodenfish/](https://vorojar.github.io/woodenfish/)
+1. 访问在线地址：[https://woodenfish.bibidu.com/](https://woodenfish.bibidu.com/)
 2. 在支持PWA的浏览器中，可以点击地址栏的"安装"按钮将应用添加到桌面
 
 ### 方式二：本地部署

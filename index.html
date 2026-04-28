@@ -6,11 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <!-- 基础SEO标签 -->
-    <title>正念木鱼 - 日日正念，福慧双修。持之以恒，方得始终。</title>
-    <meta name="description" content="正念木鱼是一个在线修行冥想的工具，通过敲击木鱼获得内心的平静与祝福。每次敲击都会带来好运与祝福，让您在数字时代也能体验传统木鱼的宁静力量。">
-    <meta name="keywords" content="正念木鱼,电子木鱼,在线木鱼,木鱼模拟器,冥想,正念修行,佛教文化,心灵平静,心灵慰藉,冥想,修行">
+    <title>正念木鱼 - 在线电子木鱼｜冥想正念修行 PWA</title>
+    <meta name="description" content="正念木鱼是免费在线电子木鱼 PWA，可一键敲击或自动敲击，配以心经、绿度母心咒等正念梵音，记录每日修行积累灵子。支持桌面安装与离线使用，无需注册。">
+    <meta name="keywords" content="正念木鱼,电子木鱼,在线木鱼,木鱼模拟器,自动敲木鱼,冥想 App,正念修行,禅修,佛教,心经,绿度母心咒,梵音,免费 PWA,离线使用,功德回向,心灵平静">
     <meta name="author" content="正念木鱼">
     <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://woodenfish.bibidu.com/">
 
     <!-- PWA 相关（必须同时注册Service Worker） -->
     <link rel="manifest" href="manifest.json">
@@ -21,17 +22,19 @@
     <meta name="apple-mobile-web-app-title" content="正念木鱼">
 
     <!-- Open Graph标签 -->
-    <meta property="og:title" content="正念木鱼 - 日日正念，福慧双修。持之以恒，方得始终。">
-    <meta property="og:description" content="通过敲击木鱼获得内心的平静与祝福。体验传统木鱼的宁静力量，收获数字时代的心灵慰藉。">
-    <meta property="og:image" content="logo.png">
-    <meta property="og:url" content="https://vorojar.github.io/woodenfish/">
+    <meta property="og:title" content="正念木鱼 - 在线电子木鱼｜冥想正念修行 PWA">
+    <meta property="og:description" content="一键敲击 / 自动敲击，搭配心经、绿度母心咒等正念梵音，记录每日修行。免费、可桌面安装、可离线使用。">
+    <meta property="og:image" content="https://woodenfish.bibidu.com/logo.png">
+    <meta property="og:url" content="https://woodenfish.bibidu.com/">
     <meta property="og:type" content="website">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:site_name" content="正念木鱼">
 
     <!-- Twitter卡片标签 -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="正念木鱼 - 线上修行，获取内心平静">
-    <meta name="twitter:description" content="通过敲击木鱼获得内心的平静与祝福。体验传统木鱼的宁静力量，收获数字时代的心灵慰藉。">
-    <meta name="twitter:image" content="logo.png?v=202502190845">
+    <meta name="twitter:title" content="正念木鱼 - 在线电子木鱼｜冥想正念修行 PWA">
+    <meta name="twitter:description" content="一键敲击 / 自动敲击，搭配心经、绿度母心咒等正念梵音，记录每日修行。免费、可桌面安装、可离线使用。">
+    <meta name="twitter:image" content="https://woodenfish.bibidu.com/logo.png">
 
     <!-- 网站图标 -->
     <link rel="icon" type="image/png" href="favicon.png">
@@ -252,7 +255,7 @@
                 title: `正念木鱼 - 线上修行，获取内心平静`,
                 desc: '日日正念，福慧双修。持之以恒，方得始终。',
                 link: url,
-                imgUrl: window.location.origin + '/woodenfish/icon.png',
+                imgUrl: window.location.origin + '/icon.png',
                 success: function () {
                     console.log('分享设置成功');
                 },
@@ -266,7 +269,7 @@
                 title: `正念木鱼 - 线上修行，获取内心平静`,
                 desc: '日日正念，福慧双修。持之以恒，方得始终。',
                 link: url,
-                imgUrl: window.location.origin + '/woodenfish/icon.png',
+                imgUrl: window.location.origin + '/icon.png',
                 success: function () {
                     console.log('朋友圈分享设置成功');
                 },
@@ -285,13 +288,19 @@
     <!-- 结构化数据 -->
     <script type="application/ld+json">
     {
-        "@context": "http://schema.org",
+        "@context": "https://schema.org",
         "@type": "WebApplication",
         "name": "正念木鱼",
-        "description": "日日正念，福慧双修。持之以恒，方得始终。",
-        "url": "https://vorojar.github.io/woodenfish/",
-        "applicationCategory": "Lifestyle",
-        "operatingSystem": "All",
+        "alternateName": ["电子木鱼", "在线木鱼", "Mindful Wooden Fish"],
+        "description": "免费在线电子木鱼 PWA，可一键敲击或自动敲击，配以心经、绿度母心咒等正念梵音，记录每日修行积累灵子。",
+        "url": "https://woodenfish.bibidu.com/",
+        "image": "https://woodenfish.bibidu.com/logo.png",
+        "applicationCategory": "LifestyleApplication",
+        "applicationSubCategory": "Meditation",
+        "operatingSystem": "Web, iOS, Android, Windows, macOS",
+        "browserRequirements": "Requires modern browser with JavaScript and Service Worker support",
+        "inLanguage": "zh-CN",
+        "isAccessibleForFree": true,
         "offers": {
             "@type": "Offer",
             "price": "0",
@@ -299,7 +308,8 @@
         },
         "creator": {
             "@type": "Organization",
-            "name": "正念木鱼"
+            "name": "正念木鱼",
+            "url": "https://woodenfish.bibidu.com/"
         }
     }
     </script>
@@ -468,7 +478,7 @@
         // 注册 Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/woodenfish/sw.js')
+                navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
                         console.log('ServiceWorker 注册成功');
                         // 检查更新

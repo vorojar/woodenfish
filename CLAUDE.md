@@ -3,7 +3,7 @@
 ## 项目概览
 
 纯静态 PWA：HTML/CSS/JS + Service Worker + LocalStorage。无构建步骤，无依赖。
-生产部署在 `https://www.maikami.com/woodenfish/` 子路径下，本地调试需要把项目放到 `/woodenfish/` 路径下访问，否则 SW 注册失败、manifest scope 警告。
+生产部署在 `https://woodenfish.bibidu.com/`（GitHub Pages + 自定义域名 CNAME），根路径访问。本地调试直接 `python3 -m http.server` 起服务即可。
 
 ```
 index.html      入口，含微信 JSSDK / 梵音环绕开关 / SW 注册三段内联脚本
@@ -16,10 +16,11 @@ music/          mp3 文件，不预缓存（按需 cache-first）
 
 ## 关键约定
 
-### 子路径部署
-- SW 注册路径写死 `/woodenfish/sw.js`，本地调试必须用同样的子路径访问
-- `sw.js` 内 `SCOPE_PATH = '/woodenfish/'` 影响预缓存清单
-- `manifest.json` 的 `start_url` / `scope` 是生产域名，本地访问会有 manifest 警告（无害）
+### 部署
+- GitHub Pages + CNAME（仓库根目录有 `CNAME` 文件，内容 `woodenfish.bibidu.com`）
+- 根路径部署，`sw.js` 内 `SCOPE_PATH = '/'`
+- SW 注册路径 `/sw.js`
+- `manifest.json` 的 `start_url` / `scope` 是绝对 URL，本地访问会有 manifest 警告（无害）
 
 ### 缓存策略
 - `CACHE_NAME = 'woodenfish-1.x.y'` 改文件后必须升版本号
@@ -51,7 +52,7 @@ music/          mp3 文件，不预缓存（按需 cache-first）
 ## 开发流程
 
 1. 改完代码先 `node --check script.js && node --check sw.js`
-2. 子路径起本地 server 测：`mkdir /tmp/test && ln -s $(pwd) /tmp/test/woodenfish && cd /tmp/test && python3 -m http.server 8765`，访问 `http://localhost:8765/woodenfish/`
+2. 起本地 server 测：`python3 -m http.server 8765`，访问 `http://localhost:8765/`
 3. 改了 sw.js 升 `CACHE_NAME`，否则用户拿不到新版本
 4. 改了 index.html / script.js / style.css 顺手刷一下版本号 query string
 

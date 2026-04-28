@@ -2,6 +2,23 @@
 
 本文件记录正念木鱼项目的发布历史。版本号对应 `sw.js` 的 `CACHE_NAME`。
 
+## [1.3.1] - 2026-04-28
+
+### 部署
+- 切换到 `woodenfish.bibidu.com`（GitHub Pages + CNAME）
+- 路径从 `/woodenfish/` 子路径改为根路径 `/`
+- 新增根目录 `CNAME` 文件
+- 删除已失效的 vercel 部署引用
+
+### SEO
+- 新增 `<link rel="canonical">`
+- 新增 og:locale / og:site_name
+- og:image / twitter:image 改为绝对 URL
+- 升级 JSON-LD 结构化数据：alternateName / inLanguage / isAccessibleForFree / 更精确的 applicationCategory
+- 新增 `robots.txt` 和 `sitemap.xml`
+- 优化 title / description / keywords 提升搜索可发现性
+- SW CACHE_NAME: 1.3.0 → 1.3.1
+
 ## [1.3.0] - 2026-04-28
 
 ### 修复（严重）

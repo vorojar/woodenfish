@@ -1,5 +1,5 @@
-const CACHE_NAME = 'woodenfish-1.3.0';
-const SCOPE_PATH = '/woodenfish/';
+const CACHE_NAME = 'woodenfish-1.3.1';
+const SCOPE_PATH = '/';
 
 // 预缓存核心资源（HTML/CSS/JS 都进，确保离线能开页）
 const ASSETS = [
