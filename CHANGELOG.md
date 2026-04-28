@@ -2,6 +2,15 @@
 
 本文件记录正念木鱼项目的发布历史。版本号对应 `sw.js` 的 `CACHE_NAME`。
 
+## [1.5.3] - 2026-04-28
+
+### 修复（严重）
+- **持续敲击下 5 秒同步永远不触发**：`markDirty` 写法是 debounce（每次都 `clearTimeout` 重置 5 秒），用户连续敲击间隔 < 5 秒就永远拿不到 push 时机，只有停下来后 5 秒才推一次。改成 throttle：已有 timer 排队时**不重置**，到点就推，最多 5 秒一次同步。
+
+### 部署
+- SW CACHE_NAME: 1.5.2 → 1.5.3
+- `index.html` 的 `script.js` / `style.css` query string 升 1.5.2 → 1.5.3
+
 ## [1.5.2] - 2026-04-28
 
 > codex 独立 review 1.5.1 后发现的几个增强 + 残留问题修复。

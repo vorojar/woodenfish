@@ -70,8 +70,10 @@ document.addEventListener('DOMContentLoaded', () => {
         function markDirty() {
             if (!bindCode) return;
             dirty = true;
-            if (timer) clearTimeout(timer);
-            timer = setTimeout(push, DEBOUNCE_MS);
+            // throttle：已有 timer 排队时不重置，保证持续敲击下最多 5 秒一次同步
+            // （之前 clearTimeout + setTimeout 是 debounce，连敲不停时永远不推）
+            if (timer) return;
+            timer = setTimeout(() => { timer = null; push(); }, DEBOUNCE_MS);
         }
 
         async function push() {
