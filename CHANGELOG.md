@@ -2,6 +2,27 @@
 
 本文件记录正念木鱼项目的发布历史。版本号对应 `sw.js` 的 `CACHE_NAME`。
 
+## [1.5.0] - 2026-04-28
+
+### 云同步（核心新功能）
+- 新增"修行码"系统：免注册，进入即自动获得 6 位短码（A-Z + 2-9，去除易混 0/O/1/I）
+- 新增 Cloudflare Worker `woodenfish-sync` + KV namespace 作为后端
+- 数据本地优先：敲击不等服务器，5 秒 debounce 后台异步推送
+- `pagehide` / `visibilitychange` 用 `navigator.sendBeacon` 兜底，关页面/切后台时保住最后一次数据
+- 服务端 max 合并策略，敲击只增不减，多设备/网络异常下不丢数据
+- 服务端 POST 后返回最新 merged 数据，客户端立即合并，绕过 KV 最终一致性延迟
+- 跨设备恢复：在另一台设备点"输入码恢复"，输入 6 位短码 → 自动拉云端 + 合并到本地
+
+### UI
+- 趋势面板顶部加"已绑定 XXXXXX [复制] [输入码恢复]"状态条
+- 复制按钮支持 Clipboard API + 老浏览器的 Selection API 退化
+
+### 部署
+- 新增 `worker/` 目录（CF Worker 代码 + wrangler.toml）
+- KV namespace `DATA`（id `aec0c5eae93444ff8bf451d8817b2951`）
+- Worker 域名 `woodenfish-sync.vorojar.workers.dev`，CORS 白名单 `woodenfish.bibidu.com` + 本地开发
+- SW CACHE_NAME: 1.4.0 → 1.5.0
+
 ## [1.4.0] - 2026-04-28
 
 ### 法律 / 合规

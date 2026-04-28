@@ -9,3 +9,7 @@ Thumbs.db
 # 工具临时目录
 .playwright-mcp/
 .spec-workflow/
+
+# Cloudflare Worker 本地状态
+worker/.wrangler/
+worker/node_modules/

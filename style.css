@@ -299,6 +299,69 @@ h1 {
     font-size: 0.9rem;
 }
 
+/* 云同步状态条 */
+.sync-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0 6px;
+    padding: 10px 12px;
+    background: rgba(76, 175, 80, 0.08);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    border-radius: 10px;
+    font-size: 13px;
+    color: #2c5e30;
+    flex-wrap: wrap;
+}
+
+.sync-bar .sync-icon {
+    display: inline-flex;
+    color: #4CAF50;
+    flex-shrink: 0;
+}
+
+.sync-bar .sync-status {
+    color: #555;
+}
+
+.sync-bar .sync-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #2c5e30;
+    user-select: all;
+}
+
+.sync-bar .sync-btn {
+    background: rgba(76, 175, 80, 0.12);
+    border: none;
+    color: #2c5e30;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-left: auto;
+}
+
+.sync-bar .sync-btn:hover {
+    background: rgba(76, 175, 80, 0.2);
+}
+
+.sync-bar .sync-btn-ghost {
+    background: transparent;
+    color: #888;
+    margin-left: 0;
+}
+
+.sync-bar .sync-btn-ghost:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.sync-bar.is-loading .sync-status::after {
+    content: '...';
+}
+
 .heatmap {
     margin: 20px 0;
     display: grid;

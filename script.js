@@ -13,6 +13,133 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // 云同步：6 位短码绑定，本地优先 + 5 秒 debounce 推送 + pagehide sendBeacon 兜底
+    const sync = (() => {
+        const API = 'https://woodenfish-sync.vorojar.workers.dev';
+        const DEBOUNCE_MS = 5000;
+        const callbacks = new Set();
+        let bindCode = storage.get('bindCode');
+        let dirty = false;
+        let timer = null;
+        let pulling = false;
+
+        function emit() { callbacks.forEach(cb => { try { cb(bindCode); } catch (e) {} }); }
+
+        function payload() {
+            return {
+                totalHits: window.__getTotalHits?.() ?? 0,
+                totalScore: window.__getTotalScore?.() ?? 0,
+                dailyData: window.__getDailyData?.() ?? {},
+            };
+        }
+
+        async function ensureCode() {
+            if (bindCode) return bindCode;
+            try {
+                const r = await fetch(API + '/sync/register', { method: 'POST' });
+                if (!r.ok) return null;
+                const { code } = await r.json();
+                bindCode = code;
+                storage.set('bindCode', code);
+                emit();
+                return code;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function pullAndMerge() {
+            if (!bindCode || pulling) return null;
+            pulling = true;
+            try {
+                const r = await fetch(API + '/sync/' + bindCode);
+                if (r.status === 404) {
+                    // 码失效（KV 被清等）→ 重新注册
+                    storage.remove('bindCode');
+                    bindCode = null;
+                    emit();
+                    await ensureCode();
+                    return null;
+                }
+                if (!r.ok) return null;
+                return await r.json();
+            } catch (e) { return null; }
+            finally { pulling = false; }
+        }
+
+        function markDirty() {
+            if (!bindCode) return;
+            dirty = true;
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(push, DEBOUNCE_MS);
+        }
+
+        async function push() {
+            if (!bindCode || !dirty) return;
+            dirty = false;
+            try {
+                const r = await fetch(API + '/sync/' + bindCode, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload()),
+                });
+                if (r.status === 404) {
+                    storage.remove('bindCode');
+                    bindCode = null;
+                    emit();
+                    return;
+                }
+                if (r.ok) {
+                    // 服务端返回 merge 后的最新数据，绕过 KV 最终一致性延迟
+                    const merged = await r.json();
+                    window.__mergeFromCloud?.(merged);
+                }
+            } catch (e) { dirty = true; /* 下次 markDirty 时重试 */ }
+        }
+
+        // pagehide / 切后台兜底
+        function flushBeacon() {
+            if (!bindCode || !dirty) return;
+            try {
+                const blob = new Blob([JSON.stringify(payload())], { type: 'application/json' });
+                if (navigator.sendBeacon(API + '/sync/' + bindCode, blob)) {
+                    dirty = false;
+                }
+            } catch (e) {}
+        }
+        window.addEventListener('pagehide', flushBeacon);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') flushBeacon();
+        });
+
+        async function bindNewCode(newCode) {
+            // 用户输入恢复码：拉云端 → 合并 → 切码
+            try {
+                const r = await fetch(API + '/sync/' + newCode);
+                if (r.status === 404) return { ok: false, reason: 'not_found' };
+                if (!r.ok) return { ok: false, reason: 'network' };
+                const cloud = await r.json();
+                bindCode = newCode;
+                storage.set('bindCode', newCode);
+                emit();
+                // 拉取后立即触发合并 + 推一次（把本地未同步数据合并上去）
+                window.__mergeFromCloud?.(cloud);
+                dirty = true;
+                push();
+                return { ok: true };
+            } catch (e) { return { ok: false, reason: 'network' }; }
+        }
+
+        return {
+            getCode: () => bindCode,
+            ensureCode,
+            pullAndMerge,
+            markDirty,
+            bindNewCode,
+            onChange: (cb) => { callbacks.add(cb); return () => callbacks.delete(cb); },
+        };
+    })();
+
     const woodfish = document.getElementById('woodfish');
     const stick = document.getElementById('stick');
     const sound = document.getElementById('woodfish-sound');
@@ -292,6 +419,117 @@ document.addEventListener('DOMContentLoaded', () => {
     totalHitsElement.textContent = `${totalStoredHits} 棒`;
     totalScoreElement.textContent = `${totalStoredScore} 灵子`;
 
+    // 给 sync 模块注册数据 getter / merger
+    window.__getTotalHits = () => totalStoredHits;
+    window.__getTotalScore = () => totalStoredScore;
+    window.__getDailyData = () => dailyData;
+    window.__mergeFromCloud = (cloud) => {
+        if (!cloud) return;
+        if ((cloud.totalHits || 0) > totalStoredHits) {
+            totalStoredHits = cloud.totalHits;
+            storage.set('totalHits', totalStoredHits);
+            totalHitsElement.textContent = `${totalStoredHits} 棒`;
+        }
+        if ((cloud.totalScore || 0) > totalStoredScore) {
+            totalStoredScore = cloud.totalScore;
+            storage.set('totalScore', totalStoredScore);
+            totalScoreElement.textContent = `${totalStoredScore} 灵子`;
+        }
+        let changed = false;
+        for (const [date, cd] of Object.entries(cloud.dailyData || {})) {
+            const ld = dailyData[date] || { hits: 0, score: 0 };
+            const merged = {
+                hits: Math.max(ld.hits || 0, cd.hits || 0),
+                score: Math.max(ld.score || 0, cd.score || 0),
+            };
+            if (merged.hits !== ld.hits || merged.score !== ld.score) {
+                dailyData[date] = merged;
+                changed = true;
+            }
+        }
+        if (changed) storage.set('dailyData', JSON.stringify(dailyData));
+        // 刷新今日显示
+        const t = getTodayData();
+        hitsElement.textContent = `今日敲击 ${t.hits} 棒`;
+        scoreElement.textContent = `获得 ${t.score} 灵子`;
+        // 趋势面板若开着，重渲染
+        if (trendPanel.classList.contains('show')) {
+            renderHeatmap();
+            renderMonthlyList();
+        }
+    };
+
+    // 启动云同步：注册或拉取
+    (async () => {
+        await sync.ensureCode();
+        const cloud = await sync.pullAndMerge();
+        if (cloud) window.__mergeFromCloud(cloud);
+        renderSyncBar();
+    })();
+
+    // 同步状态条 UI
+    const syncBar = document.getElementById('syncBar');
+    const syncCodeEl = document.getElementById('syncCode');
+    const syncStatusEl = syncBar?.querySelector('.sync-status');
+    const syncCopyBtn = document.getElementById('syncCopyBtn');
+    const syncRestoreBtn = document.getElementById('syncRestoreBtn');
+
+    function renderSyncBar() {
+        if (!syncBar) return;
+        const code = sync.getCode();
+        if (code) {
+            syncStatusEl.textContent = '已绑定';
+            syncCodeEl.textContent = code;
+            syncCopyBtn.style.display = '';
+        } else {
+            syncStatusEl.textContent = '未绑定';
+            syncCodeEl.textContent = '';
+            syncCopyBtn.style.display = 'none';
+        }
+    }
+
+    sync.onChange(renderSyncBar);
+
+    syncCopyBtn?.addEventListener('click', async () => {
+        const code = sync.getCode();
+        if (!code) return;
+        try {
+            await navigator.clipboard.writeText(code);
+            const orig = syncCopyBtn.textContent;
+            syncCopyBtn.textContent = '已复制 ✓';
+            setTimeout(() => { syncCopyBtn.textContent = orig; }, 1500);
+        } catch (e) {
+            // clipboard API 不可用时退化为 select
+            const range = document.createRange();
+            range.selectNode(syncCodeEl);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+        }
+    });
+
+    syncRestoreBtn?.addEventListener('click', async () => {
+        const input = prompt('请输入 6 位修行码（来自其他设备）：');
+        if (!input) return;
+        const code = input.trim().toUpperCase();
+        if (!/^[A-Z0-9]{6}$/.test(code)) {
+            alert('修行码格式不对（应为 6 位字母数字）');
+            return;
+        }
+        syncRestoreBtn.disabled = true;
+        const orig = syncRestoreBtn.textContent;
+        syncRestoreBtn.textContent = '正在恢复...';
+        const result = await sync.bindNewCode(code);
+        syncRestoreBtn.disabled = false;
+        syncRestoreBtn.textContent = orig;
+        if (result.ok) {
+            alert('恢复成功！数据已同步。');
+        } else if (result.reason === 'not_found') {
+            alert('未找到此修行码，请确认输入是否正确。');
+        } else {
+            alert('网络错误，请稍后再试。');
+        }
+    });
+
     const blessings = [
         "法喜充满",
         "禅心安定",
@@ -314,6 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dailyData[currentDate].hits = (dailyData[currentDate].hits || 0) + hits;
         dailyData[currentDate].score = (dailyData[currentDate].score || 0) + score;
         storage.set('dailyData', JSON.stringify(dailyData));
+        sync.markDirty();
     }
 
     // 获取本月的日期数组

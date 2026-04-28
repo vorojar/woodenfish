@@ -56,7 +56,24 @@ music/          mp3 文件，不预缓存（按需 cache-first）
 3. 改了 sw.js 升 `CACHE_NAME`，否则用户拿不到新版本
 4. 改了 index.html / script.js / style.css 顺手刷一下版本号 query string
 
+## 云同步架构
+
+- 客户端：`script.js` 内 `sync` 模块（IIFE，闭包内 bindCode/dirty/timer 状态）
+- 服务端：`worker/src/index.js`，部署在 `woodenfish-sync.vorojar.workers.dev`
+- 存储：CF KV namespace `DATA`，key=6 位短码，value=`{totalHits, totalScore, dailyData, updatedAt}`
+- 触发：每次写入 `dailyData` 后 `sync.markDirty()` → 5 秒 debounce → POST
+- 兜底：`pagehide` / `visibilitychange:hidden` → `navigator.sendBeacon`
+- 跨设备：用户输入旧码 → `sync.bindNewCode(code)` → GET → 合并 + 推一次本地数据上去
+- 合并策略：max 合并，敲击只增不减
+- KV 最终一致性：客户端 push 后用服务端返回的 merged 数据立即更新本地，绕过 60 秒同步延迟
+
+### 部署 Worker
+```
+cd worker
+wrangler deploy            # 重新部署
+wrangler kv:key list --binding DATA  # 看注册过的码
+```
+
 ## 已知未实现（TODO）
 
-- `script.js` 的 `initSession` / `uploadData` / `beforeunload` 上传都是 mock，后端 API 没实现
-- `index.html` 的 `/wxapi/wx_config.php` 在 vercel 静态部署下不存在，已改为 `response.ok` 检查并静默跳过
+- `index.html` 的 `/wxapi/wx_config.php` 在静态部署下不存在，已改为 `response.ok` 检查并静默跳过

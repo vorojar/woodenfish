@@ -1,0 +1,11 @@
+name = "woodenfish-sync"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "DATA"
+id = "aec0c5eae93444ff8bf451d8817b2951"
+
+[vars]
+# 允许的来源（CORS）
+ALLOWED_ORIGIN = "https://woodenfish.bibidu.com"
