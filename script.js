@@ -12,9 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const trendOverlay = document.getElementById('trendOverlay');
     const heatmapElement = document.getElementById('heatmap');
     const monthlyListElement = document.getElementById('monthlyList');
-    const dailyListElement = document.getElementById('dailyList');
     const zenText = document.getElementById('zenText');
-    
+
     // 音乐控制相关元素
     const backgroundMusic = document.getElementById('background-music');
     const volumeSlider = document.getElementById('volumeSlider');
@@ -22,23 +21,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const startMeditationBtn = document.getElementById('startMeditation');
     const musicPanel = document.querySelector('.music-panel');
     const autoKnockToggle = document.getElementById('autoKnockToggle');
-    
+
     let currentMusic = localStorage.getItem('selectedMusic');
-    let isPlaying = false;
     let isMeditating = false;
 
-    // 从localStorage加载已选择的音乐
-    const selectedMusic = localStorage.getItem('selectedMusic');
-    if (selectedMusic) {
-        currentMusic = selectedMusic;
-        backgroundMusic.src = selectedMusic;
-        const selectedItem = document.querySelector(`[data-src="${selectedMusic}"]`);
+    // 恢复已选择的音乐
+    if (currentMusic) {
+        backgroundMusic.src = currentMusic;
+        const selectedItem = querySelectorByDataSrc(currentMusic);
         if (selectedItem) {
             selectedItem.classList.add('active');
+        } else {
+            // localStorage 里的 selectedMusic 已不在当前曲库，清掉避免污染状态
+            currentMusic = null;
+            localStorage.removeItem('selectedMusic');
         }
-        
+
         // 如果有默认音乐，添加音符图标
-        if (!autoButton.querySelector('.music-icon')) {
+        if (currentMusic && !autoButton.querySelector('.music-icon')) {
             const musicIcon = document.createElement('span');
             musicIcon.className = 'music-icon';
             musicIcon.textContent = '♪';
@@ -61,27 +61,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 显示音乐面板
     function showMusicPanel() {
-        if (!currentMusic) {
-            // 如果没有选中的音乐，默认选中第一个并播放
-            const firstItem = musicItems[0];
-            const src = firstItem.dataset.src;
-            currentMusic = src;
-            backgroundMusic.src = src;
-            firstItem.classList.add('active');
-            localStorage.setItem('selectedMusic', src);
-        } else {
-            // 如果已有选中的音乐，确保它处于选中状态
-            const selectedItem = document.querySelector(`.music-item[data-src="${currentMusic}"]`);
+        // 已有选中的音乐则恢复其 active 状态；不再自动选第一首污染 localStorage
+        if (currentMusic) {
+            const selectedItem = querySelectorByDataSrc(currentMusic);
             if (selectedItem) {
                 selectedItem.classList.add('active');
             }
+
+            // 仅在梵音环绕开启时才尝试预播放
+            if (canPlayMusic()) {
+                backgroundMusic.src = currentMusic;
+                backgroundMusic.play();
+            }
         }
-        
-        // 播放当前选中的音乐
-        backgroundMusic.play();
-        
+
         musicPanel.classList.add('show');
         overlay.classList.add('show');
+    }
+
+    // 安全地按 data-src 查找音乐项，防止特殊字符破坏 selector
+    function querySelectorByDataSrc(src) {
+        for (const item of musicItems) {
+            if (item.dataset.src === src) return item;
+        }
+        return null;
     }
 
     // 隐藏音乐面板
@@ -98,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     musicItems.forEach(item => {
         item.addEventListener('click', () => {
             const src = item.dataset.src;
-            
+
             // 如果点击当前播放的音乐，则暂停
             if (currentMusic === src && !isMeditating) {
                 backgroundMusic.pause();
@@ -112,15 +115,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return;
             }
-            
+
             // 移除其他音乐的活动状态
             musicItems.forEach(i => i.classList.remove('active'));
-            
+
             // 设置新的音乐
             currentMusic = src;
             backgroundMusic.src = src;
             item.classList.add('active');
-            
+
             // 添加音乐图标（如果还没有）
             if (!autoButton.querySelector('.music-icon')) {
                 const musicIcon = document.createElement('span');
@@ -128,12 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 musicIcon.textContent = '♪';
                 autoButton.insertBefore(musicIcon, autoButton.firstChild);
             }
-            
+
             // 保存选择到本地存储
             localStorage.setItem('selectedMusic', src);
-            
+
             // 播放音乐
-            backgroundMusic.play();
+            if (canPlayMusic()) {
+                backgroundMusic.play();
+            }
         });
     });
 
@@ -143,9 +148,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // 停止冥想
             isMeditating = false;
             autoButton.classList.remove('active');
-            autoButton.querySelector('.button-text').textContent = '开始';
+            autoButton.querySelector('.button-text').textContent = '开始修行';
             backgroundMusic.pause();
-            stopAutoHit();
+            endMeditation();
         } else {
             showMusicPanel();
         }
@@ -159,13 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // 根据是否有音乐设置按钮状态
             if (currentMusic) {
                 autoButton.className = 'auto-button active playing';
-                backgroundMusic.play();
+                if (canPlayMusic()) {
+                    backgroundMusic.play();
+                }
             } else {
                 autoButton.className = 'auto-button active';
             }
             const buttonText = autoButton.querySelector('.button-text');
             if (buttonText) {
-                buttonText.textContent = '结束';
+                buttonText.textContent = '结束修行';
             } else {
                 console.warn('按钮文本元素不存在');
             }
@@ -179,14 +186,14 @@ document.addEventListener('DOMContentLoaded', () => {
             autoButton.className = 'auto-button';
             const buttonText = autoButton.querySelector('.button-text');
             if (buttonText) {
-                buttonText.textContent = '开始';
+                buttonText.textContent = '开始修行';
             } else {
                 console.warn('按钮文本元素不存在');
             }
             if (currentMusic) {
                 backgroundMusic.pause();
             }
-            stopAutoHit();
+            endMeditation();
         }
         hideMusicPanel();
     });
@@ -201,6 +208,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // 监听梵音环绕关闭：清理本闭包内的音乐状态，避免与 index.html 内联脚本不一致
+    const ambientSoundToggle = document.getElementById('ambientSoundToggle');
+    if (ambientSoundToggle) {
+        ambientSoundToggle.addEventListener('change', () => {
+            if (!ambientSoundToggle.checked) {
+                currentMusic = null;
+                localStorage.removeItem('selectedMusic');
+                musicItems.forEach(i => i.classList.remove('active'));
+                const musicIcon = autoButton.querySelector('.music-icon');
+                if (musicIcon) musicIcon.remove();
+            }
+        });
+    }
 
     // 点击遮罩层关闭面板
     overlay.addEventListener('click', hideMusicPanel);
@@ -221,10 +242,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    let score = 0;
+    // 结束冥想时调用：停定时器 + 上传未提交数据
+    function endMeditation() {
+        stopAutoHit();
+        if (typeof pendingHits !== 'undefined' && pendingHits > 0) {
+            uploadData();
+        }
+    }
+
     let hitCount = 0;
-    let totalHits = 0;
-    let dailyData = JSON.parse(localStorage.getItem('dailyData')) || {};
+    let dailyData = (() => {
+        try {
+            return JSON.parse(localStorage.getItem('dailyData')) || {};
+        } catch (e) {
+            console.warn('dailyData 解析失败，已重置:', e);
+            return {};
+        }
+    })();
 
     // 获取当前日期的函数
     function getCurrentDate() {
@@ -242,7 +276,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 获取今日数据
     function getTodayData() {
         const today = getCurrentDate();
-        const dailyData = JSON.parse(localStorage.getItem('dailyData')) || {};
         return dailyData[today] || { hits: 0, score: 0 };
     }
 
@@ -282,12 +315,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const today = new Date();
         const year = today.getFullYear();
         const month = today.getMonth();
-        
+
         // 获取当月第一天
         const firstDay = new Date(year, month, 1);
         // 获取下月第一天的前一天（即当月最后一天）
         const lastDay = new Date(year, month + 1, 0);
-        
+
         const days = [];
         for (let date = firstDay; date <= lastDay; date.setDate(date.getDate() + 1)) {
             // 使用本地时间格式化日期
@@ -296,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const d = String(date.getDate()).padStart(2, '0');
             days.push(`${y}-${m}-${d}`);
         }
-        
+
         return days;
     }
 
@@ -304,15 +337,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderHeatmap() {
         const monthDays = getCurrentMonthDays();
         heatmapElement.innerHTML = '';
-        
+
         monthDays.forEach(date => {
             const dayData = dailyData[date] || { hits: 0, score: 0 };
             const intensity = Math.min(5, Math.ceil(dayData.hits / 100)); // 每100次为一个等级
             const day = new Date(date).getDate();
-            
+
             const dayElement = document.createElement('div');
             dayElement.className = 'heatmap-day';
-            
+
             if (dayData.hits > 0) {
                 dayElement.classList.add('has-data');
                 dayElement.setAttribute('data-hits', intensity);
@@ -323,36 +356,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 dayElement.setAttribute('data-hits', '0');
                 dayElement.style.cursor = 'default';
             }
-            
+
             dayElement.textContent = day;
             heatmapElement.appendChild(dayElement);
-        });
-    }
-
-    // 渲染每日数据列表（懒加载）
-    function renderDailyList() {
-        const dates = Object.keys(dailyData).sort().reverse();
-        dailyListElement.innerHTML = '';
-        
-        dates.slice(0, 10).forEach(date => { // 初始只显示10天
-            const data = dailyData[date];
-            const item = document.createElement('div');
-            item.className = 'daily-item';
-            item.innerHTML = `
-                <span class="date">${date}</span>
-                <div class="stats">
-                    <span>${data.hits} 棒</span>
-                    <span>${data.score} 灵子</span>
-                </div>
-            `;
-            dailyListElement.appendChild(item);
         });
     }
 
     // 获取月份数据
     function getMonthlyData() {
         const months = {};
-        
+
         Object.entries(dailyData).forEach(([date, data]) => {
             const monthKey = date.substring(0, 7); // 获取 YYYY-MM 格式
             if (!months[monthKey]) {
@@ -366,12 +379,12 @@ document.addEventListener('DOMContentLoaded', () => {
             months[monthKey].score += data.score;
             months[monthKey].days.add(date);
         });
-        
+
         // 转换Set为数量
         Object.values(months).forEach(month => {
             month.days = month.days.size;
         });
-        
+
         return months;
     }
 
@@ -379,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderMonthlyList() {
         const months = getMonthlyData();
         monthlyListElement.innerHTML = '';
-        
+
         Object.entries(months)
             .sort((a, b) => b[0].localeCompare(a[0])) // 按月份倒序
             .forEach(([month, data]) => {
@@ -407,25 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    // 初始化标签页切换
-    document.querySelectorAll('.tab-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            // 移除所有活动状态
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
-            
-            // 添加新的活动状态
-            button.classList.add('active');
-            const tabId = button.getAttribute('data-tab');
-            document.getElementById(tabId + 'List').classList.add('active');
-            
-            // 如果是月度数据，重新渲染
-            if (tabId === 'monthly') {
-                renderMonthlyList();
-            }
-        });
-    });
-
     // 总计统计区域点击事件
     totalStats.addEventListener('click', () => {
         trendPanel.classList.toggle('show');
@@ -445,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 显示禅修文字的函数
     function showZenText() {
         const now = Date.now();
-        
+
         // 如果是第一次点击，不显示文字，只更新时间
         if (firstHit) {
             firstHit = false;
@@ -453,28 +447,28 @@ document.addEventListener('DOMContentLoaded', () => {
             lastHitTime = now;
             return;
         }
-        
+
         // 如果文字正在显示，不做任何操作
         if (isZenTextVisible) {
             return;
         }
-        
+
         // 如果距离上次显示不到10秒，不显示
         if (now - lastZenTextTime < 10000) {
             return;
         }
-        
+
         // 显示新的禅修文字
         const randomIndex = Math.floor(Math.random() * zenTexts.length);
         zenText.textContent = zenTexts[randomIndex];
         zenText.classList.add('show');
         isZenTextVisible = true;
-        
+
         // 清除之前的定时器
         if (currentZenTextTimeout) {
             clearTimeout(currentZenTextTimeout);
         }
-        
+
         // 8秒后淡出，并在淡出时更新lastZenTextTime
         currentZenTextTimeout = setTimeout(() => {
             zenText.classList.remove('show');
@@ -486,20 +480,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function createBubble(text, isScore = true) {
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
-        
+
         // 随机选择气泡浮动方向
         const floatDirection = Math.random() < 0.5 ? 'float-left' : 'float-right';
         bubble.classList.add(floatDirection);
-        
+
         bubble.textContent = isScore ? `+${text}灵子` : text;
-        
+
         // 将气泡定位到木鱼上方
         const woodfishRect = woodfish.getBoundingClientRect();
-        bubble.style.left = `${woodfishRect.left + woodfishRect.width/2}px`;
+        bubble.style.left = `${woodfishRect.left + woodfishRect.width / 2}px`;
         bubble.style.top = `${woodfishRect.top}px`;
-        
+
         document.body.appendChild(bubble);
-        
+
         // 动画结束后移除气泡
         setTimeout(() => {
             bubble.remove();
@@ -507,18 +501,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateScore(points) {
-        score += points;
         const todayData = getTodayData();
         scoreElement.textContent = `获得 ${todayData.score + points} 灵子`;
-        
+
         // 更新总计数据
         totalStoredScore += points;
         localStorage.setItem('totalScore', totalStoredScore);
         totalScoreElement.textContent = `${totalStoredScore} 灵子`;
-        
+
         // 更新每日数据
         updateDailyData(0, points);
-        
+
         // 如果趋势面板正在显示，则更新数据
         if (trendPanel.classList.contains('show')) {
             renderHeatmap();
@@ -528,61 +521,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateHits() {
         const todayData = getTodayData();
-        totalHits++;
         hitsElement.textContent = `今日敲击 ${todayData.hits + 1} 棒`;
-        
+
         // 更新总计数据
         totalStoredHits++;
         localStorage.setItem('totalHits', totalStoredHits);
         totalHitsElement.textContent = `${totalStoredHits} 棒`;
-        
+
         // 更新每日数据
         updateDailyData(1, 0);
-        
+
         // 如果趋势面板正在显示，则更新数据
         if (trendPanel.classList.contains('show')) {
             renderHeatmap();
             renderMonthlyList();
         }
-        
+
         // 显示禅修文字
         showZenText();
-    }
-
-    function hitWoodfish() {
-        // 播放音效
-        sound.currentTime = 0;
-        sound.play();
-
-        // 添加木鱼缩小动画
-        woodfish.classList.add('shrink');
-        setTimeout(() => woodfish.classList.remove('shrink'), 100);
-
-        // 木鱼棒动画
-        stick.classList.add('hit');
-        setTimeout(() => stick.classList.remove('hit'), 100);
-
-        // 更新总敲击次数
-        updateHits();
-
-        // 计数并检查是否获得奖励
-        hitCount++;
-        if (hitCount >= 5) {
-            hitCount = 0;
-            
-            // 70%概率显示祝福语
-            if (Math.random() < 0.7) {
-                const randomBlessing = blessings[Math.floor(Math.random() * blessings.length)];
-                createBubble(randomBlessing, false);
-            } else {
-                const bonus = Math.floor(Math.random() * 3) + 1;
-                createBubble(bonus);
-                updateScore(bonus);
-            }
-        } else {
-            // 无奖励时显示"棒"
-            createBubble("棒", false);
-        }
     }
 
     woodfish.addEventListener('click', (e) => {
@@ -611,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "真正的自由在于觉知当下，不执着过去，不期待未来，安住当下。",
         "让觉知指引我们，而非期待与目标。在单纯的觉知中，一切都完整而圆满。"
     ];
-    
+
     let lastZenTextTime = 0; // 初始化为0
     let currentZenTextTimeout = null;
     let firstHit = true; // 标记是否是第一次点击
@@ -620,8 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 会话管理和数据上传相关变量
     let pendingHits = 0;
+    let pendingScore = 0;
     let sessionHash = '';
-    let pendingData = [];
     let isUploading = false;
     const buttonText = autoButton.querySelector('.button-text');
 
@@ -672,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('初始化会话失败');
             }
             */
-            
+
             // 模拟成功响应
             console.log('会话初始化成功:', initialHash);
             sessionHash = initialHash;
@@ -685,29 +641,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 准备上传数据
     function prepareUploadData() {
-        const dataToUpload = {
-            previousHash: sessionHash,
-            hits: pendingData,
+        // 简化的数据结构，只包含本轮的敲击总数和灵子总数
+        const summaryData = {
+            hitsCount: pendingHits,
+            scoreTotal: pendingScore,
             timestamp: Date.now()
         };
+
+        const dataToUpload = {
+            previousHash: sessionHash,
+            data: summaryData,
+            timestamp: Date.now()
+        };
+
         // 生成新的哈希值，基于前一个哈希值和当前数据
-        dataToUpload.newHash = generateNewHash(sessionHash, pendingData);
+        dataToUpload.newHash = generateNewHash(sessionHash, summaryData);
         return dataToUpload;
     }
 
     // 上传数据到服务器
     async function uploadData() {
-        if (pendingData.length === 0 || isUploading) return;
-        
+        if (pendingHits === 0 || isUploading) return;
+
         isUploading = true;
         const dataToUpload = prepareUploadData();
-        
+
         console.log('上传前的哈希值:', {
             currentSessionHash: sessionHash,
             uploadPreviousHash: dataToUpload.previousHash,
             uploadNewHash: dataToUpload.newHash
         });
-        
+
         try {
             // TODO: 实现后端 API
             /*
@@ -728,10 +692,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('哈希值验证失败');
             }
             */
-            
+
             // 模拟成功上传
             console.log('数据上传成功:', dataToUpload);
-            
+
             // 更新会话哈希值
             const oldHash = sessionHash;
             sessionHash = dataToUpload.newHash;
@@ -739,10 +703,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 oldHash: oldHash,
                 newHash: sessionHash
             });
-            
-            // 清空已上传的数据
-            pendingData = [];
+
+            // 清空已上传的数据计数
             pendingHits = 0;
+            pendingScore = 0;
         } catch (error) {
             console.error('上传失败:', error);
             // 如果是哈希值验证失败，重新初始化会话
@@ -777,7 +741,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hitCount++;
         if (hitCount >= 5) {
             hitCount = 0;
-            
+
             // 70%概率显示祝福语
             if (Math.random() < 0.7) {
                 const randomBlessing = blessings[Math.floor(Math.random() * blessings.length)];
@@ -786,48 +750,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 const bonus = Math.floor(Math.random() * 3) + 1;
                 createBubble(bonus);
                 updateScore(bonus);
+
+                // 累计本轮获得的灵子数
+                pendingScore += bonus;
             }
         } else {
             // 无奖励时显示"棒"
             createBubble("棒", false);
         }
 
-        // 记录击打数据
+        // 记录本轮敲击次数
         pendingHits++;
-        pendingData.push({
-            timestamp: Date.now(),
-            score: score,
-            totalScore: score,
-            totalHits: hitCount
-        });
-        
+
         // 每50次击打或停止时上传数据
         if (pendingHits >= 50) {
             uploadData();
         }
     }
 
-    // 在停止自动功能时上传数据
-    function stopAutoHit() {
-        if (autoHitInterval) {
-            clearInterval(autoHitInterval);
-            autoHitInterval = null;
-            autoButton.classList.remove('active');
-            updateButtonText('开始');
-            
-            // 停止时上传未同步的数据
-            if (pendingData.length > 0) {
-                uploadData();
-            }
-        }
-    }
-
     // 在页面关闭前上传未同步的数据
     window.addEventListener('beforeunload', () => {
-        if (pendingData.length > 0) {
+        if (pendingHits > 0) {
             const dataToUpload = prepareUploadData();
             console.log('页面关闭前保存数据:', dataToUpload);
-            
+
             // TODO: 实现后端 API
             /*
             navigator.sendBeacon('你的API地址/upload-hits', JSON.stringify(dataToUpload));
@@ -837,4 +783,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 在开始敲击或页面加载时初始化会话
     initSession();
+
+    // 在文件开头添加音乐播放检查函数
+    function canPlayMusic() {
+        // 检查全局控制函数是否存在
+        if (typeof window.shouldPlayMusic === 'function') {
+            return window.shouldPlayMusic();
+        }
+        // 兜底检查，直接查找元素
+        const ambientSoundToggle = document.getElementById('ambientSoundToggle');
+        return ambientSoundToggle && ambientSoundToggle.checked;
+    }
 });
