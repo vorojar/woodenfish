@@ -13,17 +13,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 云同步：6 位短码绑定，本地优先 + 5 秒 debounce 推送 + pagehide sendBeacon 兜底
+    // 云同步：6 位短码绑定，本地优先 + 低频批量推送 + pagehide/sendBeacon 兜底
     const sync = (() => {
         const API = 'https://woodenfish-sync.vorojar.workers.dev';
-        const DEBOUNCE_MS = 5000;
-        const POLL_INTERVAL_MS = 15000; // consumer 模式 polling 间隔
-        const IDLE_THRESHOLD_MS = 10000; // 距上次敲击 ≥ 10s 才转 consumer
+        const PUSH_INTERVAL_MS = 5 * 60 * 1000; // 持续敲击时最多 5 分钟批量同步一次
+        const POLL_INTERVAL_MS = 2 * 60 * 1000; // consumer 模式 polling 间隔
+        const IDLE_THRESHOLD_MS = 60 * 1000; // 距上次敲击 ≥ 60s 才转 consumer
+        const PENDING_DELTA_KEY = 'syncPendingDelta';
+        const INFLIGHT_DELTA_KEY = 'syncInflightDelta';
+        const INFLIGHT_EVENT_KEY = 'syncInflightEventId';
+        const SESSION_ID_KEY = 'syncSessionId';
         const callbacks = new Set();
         let bindCode = storage.get('bindCode');
-        let dirty = false;
+        let dirty = hasUnsentDelta();
         let timer = null;
         let pulling = false;
+        let pushing = false;
+        let flushAfterPush = false;
         let lastSeenAt = 0;       // 上次拿到的云端 updatedAt（since 参数用）
         let lastHitAt = 0;        // 上次敲击时间
         let pollTimer = null;     // consumer mode polling timer
@@ -36,6 +42,98 @@ document.addEventListener('DOMContentLoaded', () => {
                 totalHits: window.__getTotalHits?.() ?? 0,
                 totalScore: window.__getTotalScore?.() ?? 0,
                 dailyData: window.__getDailyData?.() ?? {},
+            };
+        }
+
+        function randomId(prefix) {
+            try {
+                const bytes = new Uint8Array(12);
+                crypto.getRandomValues(bytes);
+                return prefix + Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+            } catch (e) {
+                return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2);
+            }
+        }
+
+        function sessionId() {
+            let id = storage.get(SESSION_ID_KEY);
+            if (!id) {
+                id = randomId('s_');
+                storage.set(SESSION_ID_KEY, id);
+            }
+            return id;
+        }
+
+        function emptyDelta() {
+            return { totalHits: 0, totalScore: 0, dailyData: {} };
+        }
+
+        function normalizeDelta(delta) {
+            const out = emptyDelta();
+            out.totalHits = Math.max(0, parseInt(delta?.totalHits) || 0);
+            out.totalScore = Math.max(0, parseInt(delta?.totalScore) || 0);
+            for (const [date, value] of Object.entries(delta?.dailyData || {})) {
+                const hits = Math.max(0, parseInt(value?.hits) || 0);
+                const score = Math.max(0, parseInt(value?.score) || 0);
+                if (hits || score) out.dailyData[date] = { hits, score };
+            }
+            return out;
+        }
+
+        function readDelta(key) {
+            try { return normalizeDelta(JSON.parse(storage.get(key)) || {}); }
+            catch (e) { return emptyDelta(); }
+        }
+
+        function writeDelta(key, delta) {
+            const normalized = normalizeDelta(delta);
+            if (isDeltaEmpty(normalized)) storage.remove(key);
+            else storage.set(key, JSON.stringify(normalized));
+            return normalized;
+        }
+
+        function isDeltaEmpty(delta) {
+            return !(delta?.totalHits || delta?.totalScore || Object.keys(delta?.dailyData || {}).length);
+        }
+
+        function hasUnsentDelta() {
+            return !isDeltaEmpty(readDelta(PENDING_DELTA_KEY)) || !isDeltaEmpty(readDelta(INFLIGHT_DELTA_KEY));
+        }
+
+        function addPendingDelta(date, hits, score) {
+            const delta = readDelta(PENDING_DELTA_KEY);
+            const day = delta.dailyData[date] || { hits: 0, score: 0 };
+            day.hits += Math.max(0, hits || 0);
+            day.score += Math.max(0, score || 0);
+            if (day.hits || day.score) delta.dailyData[date] = day;
+            delta.totalHits += Math.max(0, hits || 0);
+            delta.totalScore += Math.max(0, score || 0);
+            writeDelta(PENDING_DELTA_KEY, delta);
+        }
+
+        function prepareInflightDelta() {
+            let delta = readDelta(INFLIGHT_DELTA_KEY);
+            if (!isDeltaEmpty(delta)) return delta;
+            delta = readDelta(PENDING_DELTA_KEY);
+            if (isDeltaEmpty(delta)) return null;
+            writeDelta(INFLIGHT_DELTA_KEY, delta);
+            storage.remove(PENDING_DELTA_KEY);
+            storage.set(INFLIGHT_EVENT_KEY, randomId('e_'));
+            return delta;
+        }
+
+        function clearInflightDelta() {
+            storage.remove(INFLIGHT_DELTA_KEY);
+            storage.remove(INFLIGHT_EVENT_KEY);
+        }
+
+        function deltaPayload(delta) {
+            return {
+                version: 2,
+                type: 'delta',
+                sessionId: sessionId(),
+                eventId: storage.get(INFLIGHT_EVENT_KEY) || randomId('e_'),
+                delta,
             };
         }
 
@@ -60,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const r = await fetch(API + '/sync/' + bindCode, { cache: 'no-store' });
                 if (r.status === 404) {
-                    // 码失效（KV 被清等）→ 重新注册
+                    // 码失效（云端数据被清等）→ 重新注册
                     storage.remove('bindCode');
                     bindCode = null;
                     emit();
@@ -75,16 +173,16 @@ document.addEventListener('DOMContentLoaded', () => {
             finally { pulling = false; }
         }
 
-        function markDirty() {
-            if (!bindCode) return;
+        function markDirty(change) {
+            if (change) addPendingDelta(change.date, change.hits, change.score);
             dirty = true;
             lastHitAt = Date.now();
+            if (!bindCode) return;
             // 自己在敲 = producer，停掉 consumer polling 避免无意义读 + 避免回声覆盖
             stopPolling();
-            // throttle：已有 timer 排队时不重置，保证持续敲击下最多 5 秒一次同步
-            // （之前 clearTimeout + setTimeout 是 debounce，连敲不停时永远不推）
+            // 持续敲击时只做低频批量同步，结束/隐藏页面时再立即补推
             if (timer) return;
-            timer = setTimeout(() => { timer = null; push(); }, DEBOUNCE_MS);
+            timer = setTimeout(() => { timer = null; push(); }, PUSH_INTERVAL_MS);
         }
 
         // ===== Consumer mode：长时间不敲 + 标签页可见时短 poll 拉别处的更新 =====
@@ -102,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const url = API + '/sync/' + bindCode + (lastSeenAt ? '?since=' + lastSeenAt : '');
                 const r = await fetch(url, { cache: 'no-store', signal: pollAbort.signal });
                 pollAbort = null;
-                if (r.status === 304) return; // 未变，KV read 1 次但无 body
+                if (r.status === 304) return; // 未变，无 body
                 if (r.status === 404) {
                     storage.remove('bindCode');
                     bindCode = null;
@@ -150,12 +248,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function push() {
             if (!bindCode || !dirty) return;
-            dirty = false;
+            if (pushing) return;
+            const delta = prepareInflightDelta();
+            if (!delta) {
+                dirty = false;
+                return;
+            }
+            pushing = true;
             try {
                 const r = await fetch(API + '/sync/' + bindCode, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload()),
+                    body: JSON.stringify(deltaPayload(delta)),
                 });
                 if (r.status === 404) {
                     storage.remove('bindCode');
@@ -164,26 +268,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 if (r.ok) {
-                    // 服务端返回 merge 后的最新数据，绕过 KV 最终一致性延迟
+                    clearInflightDelta();
+                    // 服务端返回 merge 后的最新数据，立即修正本地显示
                     const merged = await r.json();
                     if (merged?.updatedAt) lastSeenAt = merged.updatedAt;
                     window.__mergeFromCloud?.(merged);
-                    // push 完调度一次 idle 检查：停敲 10 秒后自动转 consumer mode
+                    dirty = hasUnsentDelta();
+                    // push 完调度一次 idle 检查：停敲 60 秒后自动转 consumer mode
                     scheduleIdleCheck();
                     return;
                 }
                 // 5xx / 其他非 ok：恢复 dirty，下次 markDirty 时重试
                 dirty = true;
             } catch (e) { dirty = true; /* 下次 markDirty 时重试 */ }
+            finally {
+                pushing = false;
+                if (flushAfterPush && dirty) {
+                    flushAfterPush = false;
+                    if (timer) { clearTimeout(timer); timer = null; }
+                    push();
+                } else {
+                    flushAfterPush = false;
+                }
+            }
         }
 
         // pagehide / 切后台兜底
         function flushBeacon() {
             if (!bindCode || !dirty) return;
+            const delta = prepareInflightDelta();
+            if (!delta) return;
             try {
-                const blob = new Blob([JSON.stringify(payload())], { type: 'application/json' });
+                const blob = new Blob([JSON.stringify(deltaPayload(delta))], { type: 'application/json' });
                 if (navigator.sendBeacon(API + '/sync/' + bindCode, blob)) {
-                    dirty = false;
+                    dirty = hasUnsentDelta();
                 }
             } catch (e) {}
         }
@@ -205,17 +323,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 emit();
                 // 拉取后立即触发合并 + 推一次（把本地未同步数据合并上去）
                 window.__mergeFromCloud?.(cloud);
-                dirty = true;
-                push();
+                pushSnapshot();
                 return { ok: true };
             } catch (e) { return { ok: false, reason: 'network' }; }
         }
 
-        // 立即 push（无 debounce）：启动补传 / SW 接管后强制再同步用
-        function flush() {
+        async function pushSnapshot() {
             if (!bindCode) return;
-            dirty = true;
             if (timer) { clearTimeout(timer); timer = null; }
+            try {
+                const r = await fetch(API + '/sync/' + bindCode, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload()),
+                });
+                if (!r.ok) return;
+                const merged = await r.json();
+                if (merged?.updatedAt) lastSeenAt = merged.updatedAt;
+                window.__mergeFromCloud?.(merged);
+            } catch (e) {}
+        }
+
+        // 立即 push 整份快照：启动补传 / 绑定旧码后合并本地历史数据用
+        function flush() {
+            return pushSnapshot();
+        }
+
+        // 只在有未同步数据时立即 push，用于结束修行 / 关闭自动敲击等结算点
+        function flushPending() {
+            if (!bindCode || !dirty) return;
+            if (timer) { clearTimeout(timer); timer = null; }
+            if (pushing) {
+                flushAfterPush = true;
+                return;
+            }
             return push();
         }
 
@@ -225,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pullAndMerge,
             markDirty,
             flush,
+            flushPending,
             startPolling,
             stopPolling,
             bindNewCode,
@@ -384,6 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
             autoButton.querySelector('.button-text').textContent = '开始修行';
             backgroundMusic.pause();
             stopAutoHit();
+            sync.flushPending();
         } else {
             showMusicPanel();
         }
@@ -427,6 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 backgroundMusic.pause();
             }
             stopAutoHit();
+            sync.flushPending();
         }
         hideMusicPanel();
     });
@@ -438,6 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 startAutoHit();
             } else {
                 stopAutoHit();
+                sync.flushPending();
             }
         }
     });
@@ -660,7 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dailyData[currentDate].hits = (dailyData[currentDate].hits || 0) + hits;
         dailyData[currentDate].score = (dailyData[currentDate].score || 0) + score;
         storage.set('dailyData', JSON.stringify(dailyData));
-        sync.markDirty();
+        sync.markDirty({ date: currentDate, hits, score });
     }
 
     // 获取本月的日期数组

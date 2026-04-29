@@ -6,6 +6,11 @@ compatibility_date = "2025-01-01"
 binding = "DATA"
 id = "aec0c5eae93444ff8bf451d8817b2951"
 
+[[d1_databases]]
+binding = "DB"
+database_name = "woodenfish_sync"
+database_id = "4e96fbb5-4595-48c0-9443-8f768dfd2d40"
+
 [vars]
 # 允许的来源（CORS）
 ALLOWED_ORIGIN = "https://woodenfish.bibidu.com"
