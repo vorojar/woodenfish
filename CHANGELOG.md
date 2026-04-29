@@ -2,6 +2,45 @@
 
 本文件记录正念木鱼项目的发布历史。版本号对应 `sw.js` 的 `CACHE_NAME`。
 
+## [1.5.6] - 2026-04-30
+
+### 新功能：D1 增量同步架构
+
+- 客户端从常规整份数据同步改为 v2 delta payload：`sessionId` + `eventId` + `{totalHits,totalScore,dailyData}`。
+- 敲击仍然本地实时写入 LocalStorage，云端只接收低频批量增量。
+- 持续自动敲击最多每 5 分钟同步一次；结束修行、关闭自动敲击、页面隐藏或关闭时立即补推未同步数据。
+- Worker 新增 D1 支持：`sync_codes`、`daily_totals`、`sync_events` 三张表，按 `eventId` 去重，按天累加。
+- Worker 保留旧 KV 兼容路径：没有 D1 binding 时可回落 KV；发现旧 KV 数据时可迁移/合并到 D1。
+- 旧客户端整份 payload 仍可 POST，服务端继续使用 max 合并，保证上线过渡期兼容。
+
+### 容量收益
+
+- 旧 KV 5 秒同步模型：1 个用户自动敲击 1 小时约 720 次写入。
+- 当前 5 分钟增量同步模型：1 个用户自动敲击 1 小时约 13 次同步。
+- D1 免费层按行写入计量，更适合事件去重、每日统计、排行榜等结构化数据。
+
+### 部署
+
+- 新增 D1 数据库 `woodenfish_sync`，binding 为 `DB`。
+- 新增 migration：`worker/migrations/0001_delta_sync.sql`。
+- Worker 已部署到 `woodenfish-sync.vorojar.workers.dev`。
+- SW CACHE_NAME: 1.5.5 → 1.5.6。
+- `index.html` 的 `script.js` / `style.css` query string 升 1.5.5 → 1.5.6。
+
+## [1.5.5] - 2026-04-29
+
+### 扩容：低频批量同步
+
+- 持续自动敲击时从最多每 5 秒同步一次改为最多每 5 分钟同步一次。
+- 结束修行、关闭自动敲击、页面隐藏或关闭时立即补推未同步数据。
+- consumer polling 从 15 秒降到 2 分钟。
+- 新增 `task.md`，记录后续扩容路线和原因。
+
+### 部署
+
+- SW CACHE_NAME: 1.5.4 → 1.5.5。
+- `index.html` 的 `script.js` / `style.css` query string 升 1.5.4 → 1.5.5。
+
 ## [1.5.4] - 2026-04-28
 
 ### 新功能：被动式实时同步（不刷新就能看到对方）
