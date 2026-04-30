@@ -13,6 +13,13 @@ const CODE_LENGTH = 6;
 const MAX_REGISTER_RETRY = 8;
 const MAX_BODY_BYTES = 50 * 1024;
 const MAX_DELTA_VALUE = 1000000;
+const MAX_DELTA_DAYS = 3;
+const MAX_LEGACY_DAYS = 800;
+const RATE_LIMITS = {
+    register: { limit: 20, windowMs: 60 * 1000 },
+    read: { limit: 240, windowMs: 60 * 1000 },
+    write: { limit: 120, windowMs: 60 * 1000 },
+};
 
 const ALLOWED_ORIGINS = [
     'https://woodenfish.bibidu.com',
@@ -21,6 +28,7 @@ const ALLOWED_ORIGINS = [
 ];
 
 let schemaReady = null;
+const rateBuckets = new Map();
 
 function hasD1(env) {
     return !!env.DB?.prepare;
@@ -50,6 +58,60 @@ function clampInt(value) {
     const n = Number(value);
     if (!Number.isFinite(n) || n <= 0) return 0;
     return Math.min(MAX_DELTA_VALUE, Math.floor(n));
+}
+
+function isPlainObject(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValidDateKey(date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+    const year = parseInt(date.slice(0, 4), 10);
+    if (year < 2024 || year > 2100) return false;
+    const parsed = new Date(date + 'T00:00:00Z');
+    return parsed.toISOString().slice(0, 10) === date;
+}
+
+function clientKey(request) {
+    return request.headers.get('CF-Connecting-IP') ||
+        request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+        'local';
+}
+
+function checkRateLimit(request, bucketName) {
+    const rule = RATE_LIMITS[bucketName];
+    if (!rule) return null;
+    const now = nowMs();
+    const key = bucketName + ':' + clientKey(request);
+    const bucket = rateBuckets.get(key) || { count: 0, resetAt: now + rule.windowMs };
+    if (now > bucket.resetAt) {
+        bucket.count = 0;
+        bucket.resetAt = now + rule.windowMs;
+    }
+    bucket.count++;
+    rateBuckets.set(key, bucket);
+
+    if (rateBuckets.size > 5000) {
+        for (const [k, v] of rateBuckets) {
+            if (now > v.resetAt) rateBuckets.delete(k);
+        }
+    }
+
+    if (bucket.count <= rule.limit) return null;
+    const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+    return retryAfter;
+}
+
+function rateLimited(request, retryAfter) {
+    return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'no-store',
+            'Retry-After': String(retryAfter),
+            ...corsHeaders(request),
+        },
+    });
 }
 
 function corsHeaders(request) {
@@ -85,14 +147,18 @@ function isDeltaPayload(body) {
 }
 
 function normalizeLegacyData(data) {
+    if (!isPlainObject(data)) return null;
     const out = {
         totalHits: clampInt(data?.totalHits),
         totalScore: clampInt(data?.totalScore),
         dailyData: {},
         updatedAt: clampInt(data?.updatedAt) || nowMs(),
     };
-    for (const [date, value] of Object.entries(data?.dailyData || {})) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    if (data?.dailyData && !isPlainObject(data.dailyData)) return null;
+    const entries = Object.entries(data?.dailyData || {});
+    if (entries.length > MAX_LEGACY_DAYS) return null;
+    for (const [date, value] of entries) {
+        if (!isValidDateKey(date) || !isPlainObject(value)) continue;
         const hits = clampInt(value?.hits);
         const score = clampInt(value?.score);
         if (hits || score) out.dailyData[date] = { hits, score };
@@ -101,28 +167,40 @@ function normalizeLegacyData(data) {
 }
 
 function normalizeDelta(body) {
+    if (!isPlainObject(body) || !isPlainObject(body?.delta)) return null;
     const eventId = String(body?.eventId || '');
     const sessionId = String(body?.sessionId || '');
     if (!/^[A-Za-z0-9._:-]{8,96}$/.test(eventId)) return null;
     if (!/^[A-Za-z0-9._:-]{8,96}$/.test(sessionId)) return null;
+    if (body.delta?.dailyData && !isPlainObject(body.delta.dailyData)) return null;
 
     const dailyData = {};
     let totalHits = clampInt(body?.delta?.totalHits);
     let totalScore = clampInt(body?.delta?.totalScore);
+    let dailyHits = 0;
+    let dailyScore = 0;
 
-    for (const [date, value] of Object.entries(body?.delta?.dailyData || {})) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const entries = Object.entries(body?.delta?.dailyData || {});
+    if (entries.length > MAX_DELTA_DAYS) return null;
+    for (const [date, value] of entries) {
+        if (!isValidDateKey(date) || !isPlainObject(value)) return null;
         const hits = clampInt(value?.hits);
         const score = clampInt(value?.score);
-        if (hits || score) dailyData[date] = { hits, score };
+        if (hits || score) {
+            dailyData[date] = { hits, score };
+            dailyHits += hits;
+            dailyScore += score;
+        }
     }
 
     if (!totalHits) {
-        totalHits = Object.values(dailyData).reduce((sum, item) => sum + (item.hits || 0), 0);
+        totalHits = dailyHits;
     }
     if (!totalScore) {
-        totalScore = Object.values(dailyData).reduce((sum, item) => sum + (item.score || 0), 0);
+        totalScore = dailyScore;
     }
+    if (dailyHits && totalHits !== dailyHits) return null;
+    if (dailyScore && totalScore !== dailyScore) return null;
     if (!totalHits && !totalScore) return null;
 
     return { eventId, sessionId, totalHits, totalScore, dailyData };
@@ -212,7 +290,9 @@ async function kvGetRecord(code, env) {
 
 async function kvPutRecord(code, data, env) {
     if (!env.DATA?.put) return;
-    await env.DATA.put(code, JSON.stringify(normalizeLegacyData(data)));
+    const normalized = normalizeLegacyData(data);
+    if (!normalized) return;
+    await env.DATA.put(code, JSON.stringify(normalized));
 }
 
 async function d1GetRecord(code, env) {
@@ -241,6 +321,7 @@ async function d1UpsertLegacy(code, data, env) {
     await ensureSchema(env);
     const ts = nowMs();
     const normalized = normalizeLegacyData(data);
+    if (!normalized) return null;
     await env.DB.prepare(`
         INSERT INTO sync_codes (code, total_hits, total_score, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?)
@@ -312,6 +393,8 @@ async function importKvIntoD1(code, env) {
 }
 
 async function handleRegister(request, env) {
+    const retryAfter = checkRateLimit(request, 'register');
+    if (retryAfter) return rateLimited(request, retryAfter);
     if (hasD1(env)) await ensureSchema(env);
 
     for (let i = 0; i < MAX_REGISTER_RETRY; i++) {
@@ -338,6 +421,8 @@ async function handleRegister(request, env) {
 }
 
 async function handleGet(code, request, env) {
+    const retryAfter = checkRateLimit(request, 'read');
+    if (retryAfter) return rateLimited(request, retryAfter);
     if (!isValidCode(code)) return json({ error: 'invalid_code' }, 400, request);
 
     let data = null;
@@ -358,6 +443,8 @@ async function handleGet(code, request, env) {
 }
 
 async function handlePost(code, request, env) {
+    const retryAfter = checkRateLimit(request, 'write');
+    if (retryAfter) return rateLimited(request, retryAfter);
     if (!isValidCode(code)) return json({ error: 'invalid_code' }, 400, request);
     const cl = parseInt(request.headers.get('Content-Length') || '0');
     if (cl > MAX_BODY_BYTES) return json({ error: 'too_large' }, 413, request);
@@ -387,6 +474,7 @@ async function handlePost(code, request, env) {
     }
 
     const local = normalizeLegacyData(body);
+    if (!local) return json({ error: 'invalid_payload' }, 400, request);
     if (hasD1(env)) {
         let record = await d1GetRecord(code, env);
         if (!record) record = await importKvIntoD1(code, env);
@@ -404,7 +492,9 @@ async function handlePost(code, request, env) {
 
 export {
     addDeltaToRecord,
+    checkRateLimit,
     emptyRecord,
+    isValidDateKey,
     mergeData,
     normalizeDelta,
     normalizeLegacyData,

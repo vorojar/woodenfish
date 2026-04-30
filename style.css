@@ -308,10 +308,11 @@ h1 {
     padding: 10px 12px;
     background: rgba(76, 175, 80, 0.08);
     border: 1px solid rgba(76, 175, 80, 0.2);
-    border-radius: 10px;
+    border-radius: 8px;
     font-size: 13px;
     color: #2c5e30;
     flex-wrap: wrap;
+    transition: background 0.2s, border-color 0.2s;
 }
 
 .sync-bar .sync-icon {
@@ -320,8 +321,48 @@ h1 {
     flex-shrink: 0;
 }
 
+.sync-bar[data-state="pending"] {
+    background: rgba(218, 165, 32, 0.08);
+    border-color: rgba(218, 165, 32, 0.22);
+    color: #80621a;
+}
+
+.sync-bar[data-state="pending"] .sync-icon,
+.sync-bar[data-state="pending"] .sync-code {
+    color: #80621a;
+}
+
+.sync-bar[data-state="syncing"] {
+    background: rgba(33, 150, 243, 0.07);
+    border-color: rgba(33, 150, 243, 0.18);
+    color: #2b6088;
+}
+
+.sync-bar[data-state="syncing"] .sync-icon,
+.sync-bar[data-state="syncing"] .sync-code {
+    color: #2b6088;
+}
+
+.sync-bar[data-state="error"] {
+    background: rgba(198, 67, 67, 0.07);
+    border-color: rgba(198, 67, 67, 0.18);
+    color: #8a3a35;
+}
+
+.sync-bar[data-state="error"] .sync-icon,
+.sync-bar[data-state="error"] .sync-code {
+    color: #8a3a35;
+}
+
 .sync-bar .sync-status {
     color: #555;
+    font-weight: 600;
+}
+
+.sync-bar .sync-detail {
+    color: #888;
+    font-size: 12px;
+    min-width: 48px;
 }
 
 .sync-bar .sync-code {

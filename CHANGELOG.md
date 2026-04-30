@@ -2,6 +2,31 @@
 
 本文件记录正念木鱼项目的发布历史。版本号对应 `sw.js` 的 `CACHE_NAME`。
 
+## [1.5.7] - 2026-04-30
+
+### 体验：同步状态更可见
+
+- 趋势面板的修行码同步条新增状态：已同步、待同步、同步中、同步失败。
+- 状态文案保持短句，并用低饱和颜色提示，不打扰木鱼主体验。
+- 记录 `lastSyncedAt`，同步成功后显示“刚刚 / X分钟前 / X小时前”。
+
+### 后端保护
+
+- Worker 增加轻量内存滑窗限流：注册、读取、写入分别限制，异常刷接口会返回 429。
+- 收紧 v2 delta payload 校验：校验 `sessionId` / `eventId`、合法日期、每日增量天数、总量与每日增量一致性。
+- 收紧旧版 snapshot payload 校验：限制 dailyData 天数，过滤非法日期。
+
+### 工程化
+
+- 新增无依赖 Node 测试脚本，覆盖日期校验、delta 校验、旧 payload 兼容、限流、KV 回退路由。
+- 新增 GitHub Actions CI：push / PR 自动运行语法检查和测试。
+- 新增 `package.json`，仅提供 `npm run check` 和 `npm test`，不引入构建步骤或依赖。
+
+### 部署
+
+- SW CACHE_NAME: 1.5.6 → 1.5.7。
+- `index.html` 的 `script.js` / `style.css` query string 升 1.5.6 → 1.5.7。
+
 ## [1.5.6] - 2026-04-30
 
 ### 新功能：D1 增量同步架构

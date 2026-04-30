@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "scripts": {
+    "check": "node --check script.js && node --check sw.js && node --check worker/src/index.js",
+    "test": "node --test worker/test/sync.test.mjs"
+  }
+}

@@ -23,9 +23,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const INFLIGHT_DELTA_KEY = 'syncInflightDelta';
         const INFLIGHT_EVENT_KEY = 'syncInflightEventId';
         const SESSION_ID_KEY = 'syncSessionId';
+        const LAST_SYNCED_AT_KEY = 'lastSyncedAt';
         const callbacks = new Set();
+        const statusCallbacks = new Set();
         let bindCode = storage.get('bindCode');
         let dirty = hasUnsentDelta();
+        let syncState = dirty ? 'pending' : 'idle';
+        let lastSyncedAt = parseInt(storage.get(LAST_SYNCED_AT_KEY)) || 0;
         let timer = null;
         let pulling = false;
         let pushing = false;
@@ -36,6 +40,31 @@ document.addEventListener('DOMContentLoaded', () => {
         let pollAbort = null;     // 当前 in-flight poll fetch abort
 
         function emit() { callbacks.forEach(cb => { try { cb(bindCode); } catch (e) {} }); }
+
+        function emitStatus() {
+            const status = getStatus();
+            statusCallbacks.forEach(cb => { try { cb(status); } catch (e) {} });
+        }
+
+        function setStatus(state) {
+            if (syncState === state) return;
+            syncState = state;
+            emitStatus();
+        }
+
+        function markSynced() {
+            lastSyncedAt = Date.now();
+            storage.set(LAST_SYNCED_AT_KEY, String(lastSyncedAt));
+            setStatus(hasUnsentDelta() ? 'pending' : 'synced');
+        }
+
+        function getStatus() {
+            return {
+                state: syncState,
+                dirty: hasUnsentDelta() || dirty,
+                lastSyncedAt,
+            };
+        }
 
         function payload() {
             return {
@@ -168,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!r.ok) return null;
                 const data = await r.json();
                 if (data?.updatedAt) lastSeenAt = data.updatedAt;
+                markSynced();
                 return data;
             } catch (e) { return null; }
             finally { pulling = false; }
@@ -177,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (change) addPendingDelta(change.date, change.hits, change.score);
             dirty = true;
             lastHitAt = Date.now();
+            setStatus('pending');
             if (!bindCode) return;
             // 自己在敲 = producer，停掉 consumer polling 避免无意义读 + 避免回声覆盖
             stopPolling();
@@ -252,9 +283,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const delta = prepareInflightDelta();
             if (!delta) {
                 dirty = false;
+                markSynced();
                 return;
             }
             pushing = true;
+            setStatus('syncing');
             try {
                 const r = await fetch(API + '/sync/' + bindCode, {
                     method: 'POST',
@@ -265,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     storage.remove('bindCode');
                     bindCode = null;
                     emit();
+                    setStatus('error');
                     return;
                 }
                 if (r.ok) {
@@ -274,13 +308,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (merged?.updatedAt) lastSeenAt = merged.updatedAt;
                     window.__mergeFromCloud?.(merged);
                     dirty = hasUnsentDelta();
+                    markSynced();
                     // push 完调度一次 idle 检查：停敲 60 秒后自动转 consumer mode
                     scheduleIdleCheck();
                     return;
                 }
                 // 5xx / 其他非 ok：恢复 dirty，下次 markDirty 时重试
                 dirty = true;
-            } catch (e) { dirty = true; /* 下次 markDirty 时重试 */ }
+                setStatus('error');
+            } catch (e) { dirty = true; setStatus('error'); /* 下次 markDirty 时重试 */ }
             finally {
                 pushing = false;
                 if (flushAfterPush && dirty) {
@@ -302,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blob = new Blob([JSON.stringify(deltaPayload(delta))], { type: 'application/json' });
                 if (navigator.sendBeacon(API + '/sync/' + bindCode, blob)) {
                     dirty = hasUnsentDelta();
+                    markSynced();
                 }
             } catch (e) {}
         }
@@ -331,17 +368,22 @@ document.addEventListener('DOMContentLoaded', () => {
         async function pushSnapshot() {
             if (!bindCode) return;
             if (timer) { clearTimeout(timer); timer = null; }
+            setStatus('syncing');
             try {
                 const r = await fetch(API + '/sync/' + bindCode, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload()),
                 });
-                if (!r.ok) return;
+                if (!r.ok) {
+                    setStatus('error');
+                    return;
+                }
                 const merged = await r.json();
                 if (merged?.updatedAt) lastSeenAt = merged.updatedAt;
                 window.__mergeFromCloud?.(merged);
-            } catch (e) {}
+                markSynced();
+            } catch (e) { setStatus('error'); }
         }
 
         // 立即 push 整份快照：启动补传 / 绑定旧码后合并本地历史数据用
@@ -362,6 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return {
             getCode: () => bindCode,
+            getStatus,
             ensureCode,
             pullAndMerge,
             markDirty,
@@ -371,6 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
             stopPolling,
             bindNewCode,
             onChange: (cb) => { callbacks.add(cb); return () => callbacks.delete(cb); },
+            onStatusChange: (cb) => { statusCallbacks.add(cb); return () => statusCallbacks.delete(cb); },
         };
     })();
 
@@ -724,24 +768,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const syncBar = document.getElementById('syncBar');
     const syncCodeEl = document.getElementById('syncCode');
     const syncStatusEl = syncBar?.querySelector('.sync-status');
+    const syncDetailEl = document.getElementById('syncDetail');
     const syncCopyBtn = document.getElementById('syncCopyBtn');
     const syncRestoreBtn = document.getElementById('syncRestoreBtn');
+
+    function formatSyncTime(ts) {
+        if (!ts) return '';
+        const diff = Date.now() - ts;
+        if (diff < 60 * 1000) return '刚刚';
+        if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}分钟前`;
+        return `${Math.floor(diff / 3600000)}小时前`;
+    }
+
+    function syncStatusText(status) {
+        if (!sync.getCode()) return { main: '未绑定', detail: '' };
+        if (status.state === 'syncing') return { main: '同步中', detail: '' };
+        if (status.state === 'pending') return { main: '待同步', detail: '本地已保存' };
+        if (status.state === 'error') return { main: '同步失败', detail: '稍后重试' };
+        const time = formatSyncTime(status.lastSyncedAt);
+        return { main: '已同步', detail: time };
+    }
 
     function renderSyncBar() {
         if (!syncBar) return;
         const code = sync.getCode();
+        const status = sync.getStatus();
+        const text = syncStatusText(status);
+        syncBar.dataset.state = code ? status.state : 'unbound';
+        syncStatusEl.textContent = text.main;
+        if (syncDetailEl) syncDetailEl.textContent = text.detail;
         if (code) {
-            syncStatusEl.textContent = '已绑定';
             syncCodeEl.textContent = code;
             syncCopyBtn.style.display = '';
         } else {
-            syncStatusEl.textContent = '未绑定';
             syncCodeEl.textContent = '';
             syncCopyBtn.style.display = 'none';
         }
     }
 
     sync.onChange(renderSyncBar);
+    sync.onStatusChange(renderSyncBar);
 
     syncCopyBtn?.addEventListener('click', async () => {
         const code = sync.getCode();
